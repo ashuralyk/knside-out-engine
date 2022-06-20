@@ -1,0 +1,9 @@
+[submodule "contracts/c/lua"]
+	path = contracts/c/lua
+	url = https://github.com/ashuralyk/lua
+[submodule "contracts/c/deps/ckb-c-stdlib"]
+	path = contracts/c/deps/ckb-c-stdlib
+	url = https://github.com/nervosnetwork/ckb-c-stdlib
+[submodule "contracts/c/deps/ckb-lib-secp256k1/secp256k1"]
+	path = contracts/c/deps/ckb-lib-secp256k1/secp256k1
+	url = https://github.com/nervosnetwork/secp256k1

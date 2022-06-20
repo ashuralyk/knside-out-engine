@@ -1,0 +1,40 @@
+#ifndef CKB_LUA_HEADER
+#define CKB_LUA_HEADER
+
+#define bool int
+#define true 1
+#define false 0
+
+#define CHECK_RET(x) \
+    ret = x;         \
+    if (ret != 0) {  \
+        return ret;  \
+    }
+
+#define MAX_CACHE_SIZE (64 * 1024)
+#define MAX_JSON_SIZE 1024
+#define MAX_FUNCTION_CALL_SIZE 256
+#define MAX_JSON_TOKEN_COUNT 64
+#define HASH_SIZE 32
+
+enum ERROR
+{
+    ERROR_LOADING_SCRIPT = 4, 
+    ERROR_LOADING_CELL_LOCK,
+    ERROR_LUA_SCRIPT_ARGS,
+    ERROR_FLAG_0_BYTES,
+    ERROR_FLAG_1_BYTES,
+    ERROR_FLAG_2_BYTES,
+    ERROR_CHECK_CELL_TYPE_HASH,
+    ERROR_NO_DEPLOYMENT_CELL,
+    ERROR_DEPLOYMENT_FORMAT,
+    ERROR_GLOBAL_DATA_FORMAT,
+    ERROR_RUN_LUA_CODE,
+    ERROR_CHECK_LUA_GLOBAL_DATA,
+    ERROR_REQUEST_FLAG,
+    ERROR_APPLY_LUA_REQUEST,
+    ERROR_TABLE_TO_SJON,
+    ERROR_JSON_TO_TABLE,
+};
+
+#endif
