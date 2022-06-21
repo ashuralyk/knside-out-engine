@@ -1,0 +1,33 @@
+array Hash [byte; 32];
+vector String <byte>;
+
+table ProjectInfo {
+    name: String,
+    author: String,
+    website: String,
+    description: String,
+}
+
+// contain contract code and project info
+table Deployment {
+    code: String,
+    project: ProjectInfo,
+}
+
+// represent global data
+table Flag_0 {
+    project_id: Hash,
+}
+
+// represent personal data
+table Flag_1 {
+    project_id: Hash,
+    owner_lockscript: String,
+}
+
+// represent native or remote contract reqeust call
+table Flag_2 {
+    project_id: Hash,
+    method: String,
+    function_call: String,
+}

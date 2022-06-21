@@ -6,12 +6,10 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-ckb-tool = "0.3.0"
-ckb-testtool = "0.3.0"
-hex = "0.4"
 ckb-system-scripts = "0.5"
-ckb-standalone-debugger = "0.3.0"
-ckb-x64-simulator = "0.4.0"
+ckb-testtool = "0.7"
+hex = "0.4"
 lazy_static = "1.4"
+mlua = { version = "0.8", features = ["lua54", "serialize", "vendored"] }
+molecule = "0.7"
 serde_json = "1.0"
-molecule = "0.7.0"

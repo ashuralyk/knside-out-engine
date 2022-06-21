@@ -1,13 +1,13 @@
-use ckb_tool::ckb_types::bytes::Bytes;
+use ckb_testtool::ckb_types::bytes::Bytes;
 use std::env;
 use std::fs;
 use std::path::PathBuf;
 use std::str::FromStr;
 
-#[cfg(test)]
-mod tests;
 mod helper;
 mod protocol;
+#[cfg(test)]
+mod tests;
 
 const TEST_ENV_VAR: &str = "CAPSULE_TEST_ENV";
 
