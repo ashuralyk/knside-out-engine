@@ -1651,7 +1651,6 @@ impl ::core::fmt::Display for Flag1 {
     fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
         write!(f, "{} {{ ", Self::NAME)?;
         write!(f, "{}: {}", "project_id", self.project_id())?;
-        write!(f, ", {}: {}", "owner_lockscript", self.owner_lockscript())?;
         let extra_count = self.count_extra_fields();
         if extra_count != 0 {
             write!(f, ", .. ({} fields)", extra_count)?;
@@ -1662,14 +1661,14 @@ impl ::core::fmt::Display for Flag1 {
 impl ::core::default::Default for Flag1 {
     fn default() -> Self {
         let v: Vec<u8> = vec![
-            48, 0, 0, 0, 12, 0, 0, 0, 44, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            40, 0, 0, 0, 8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         ];
         Flag1::new_unchecked(v.into())
     }
 }
 impl Flag1 {
-    pub const FIELD_COUNT: usize = 2;
+    pub const FIELD_COUNT: usize = 1;
     pub fn total_size(&self) -> usize {
         molecule::unpack_number(self.as_slice()) as usize
     }
@@ -1689,17 +1688,11 @@ impl Flag1 {
     pub fn project_id(&self) -> Hash {
         let slice = self.as_slice();
         let start = molecule::unpack_number(&slice[4..]) as usize;
-        let end = molecule::unpack_number(&slice[8..]) as usize;
-        Hash::new_unchecked(self.0.slice(start..end))
-    }
-    pub fn owner_lockscript(&self) -> String {
-        let slice = self.as_slice();
-        let start = molecule::unpack_number(&slice[8..]) as usize;
         if self.has_extra_fields() {
-            let end = molecule::unpack_number(&slice[12..]) as usize;
-            String::new_unchecked(self.0.slice(start..end))
+            let end = molecule::unpack_number(&slice[8..]) as usize;
+            Hash::new_unchecked(self.0.slice(start..end))
         } else {
-            String::new_unchecked(self.0.slice(start..))
+            Hash::new_unchecked(self.0.slice(start..))
         }
     }
     pub fn as_reader<'r>(&'r self) -> Flag1Reader<'r> {
@@ -1728,9 +1721,7 @@ impl molecule::prelude::Entity for Flag1 {
         ::core::default::Default::default()
     }
     fn as_builder(self) -> Self::Builder {
-        Self::new_builder()
-            .project_id(self.project_id())
-            .owner_lockscript(self.owner_lockscript())
+        Self::new_builder().project_id(self.project_id())
     }
 }
 #[derive(Clone, Copy)]
@@ -1753,7 +1744,6 @@ impl<'r> ::core::fmt::Display for Flag1Reader<'r> {
     fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
         write!(f, "{} {{ ", Self::NAME)?;
         write!(f, "{}: {}", "project_id", self.project_id())?;
-        write!(f, ", {}: {}", "owner_lockscript", self.owner_lockscript())?;
         let extra_count = self.count_extra_fields();
         if extra_count != 0 {
             write!(f, ", .. ({} fields)", extra_count)?;
@@ -1762,7 +1752,7 @@ impl<'r> ::core::fmt::Display for Flag1Reader<'r> {
     }
 }
 impl<'r> Flag1Reader<'r> {
-    pub const FIELD_COUNT: usize = 2;
+    pub const FIELD_COUNT: usize = 1;
     pub fn total_size(&self) -> usize {
         molecule::unpack_number(self.as_slice()) as usize
     }
@@ -1782,17 +1772,11 @@ impl<'r> Flag1Reader<'r> {
     pub fn project_id(&self) -> HashReader<'r> {
         let slice = self.as_slice();
         let start = molecule::unpack_number(&slice[4..]) as usize;
-        let end = molecule::unpack_number(&slice[8..]) as usize;
-        HashReader::new_unchecked(&self.as_slice()[start..end])
-    }
-    pub fn owner_lockscript(&self) -> StringReader<'r> {
-        let slice = self.as_slice();
-        let start = molecule::unpack_number(&slice[8..]) as usize;
         if self.has_extra_fields() {
-            let end = molecule::unpack_number(&slice[12..]) as usize;
-            StringReader::new_unchecked(&self.as_slice()[start..end])
+            let end = molecule::unpack_number(&slice[8..]) as usize;
+            HashReader::new_unchecked(&self.as_slice()[start..end])
         } else {
-            StringReader::new_unchecked(&self.as_slice()[start..])
+            HashReader::new_unchecked(&self.as_slice()[start..])
         }
     }
 }
@@ -1846,23 +1830,17 @@ impl<'r> molecule::prelude::Reader<'r> for Flag1Reader<'r> {
             return ve!(Self, OffsetsNotMatch);
         }
         HashReader::verify(&slice[offsets[0]..offsets[1]], compatible)?;
-        StringReader::verify(&slice[offsets[1]..offsets[2]], compatible)?;
         Ok(())
     }
 }
 #[derive(Debug, Default)]
 pub struct Flag1Builder {
     pub(crate) project_id: Hash,
-    pub(crate) owner_lockscript: String,
 }
 impl Flag1Builder {
-    pub const FIELD_COUNT: usize = 2;
+    pub const FIELD_COUNT: usize = 1;
     pub fn project_id(mut self, v: Hash) -> Self {
         self.project_id = v;
-        self
-    }
-    pub fn owner_lockscript(mut self, v: String) -> Self {
-        self.owner_lockscript = v;
         self
     }
 }
@@ -1870,23 +1848,18 @@ impl molecule::prelude::Builder for Flag1Builder {
     type Entity = Flag1;
     const NAME: &'static str = "Flag1Builder";
     fn expected_length(&self) -> usize {
-        molecule::NUMBER_SIZE * (Self::FIELD_COUNT + 1)
-            + self.project_id.as_slice().len()
-            + self.owner_lockscript.as_slice().len()
+        molecule::NUMBER_SIZE * (Self::FIELD_COUNT + 1) + self.project_id.as_slice().len()
     }
     fn write<W: molecule::io::Write>(&self, writer: &mut W) -> molecule::io::Result<()> {
         let mut total_size = molecule::NUMBER_SIZE * (Self::FIELD_COUNT + 1);
         let mut offsets = Vec::with_capacity(Self::FIELD_COUNT);
         offsets.push(total_size);
         total_size += self.project_id.as_slice().len();
-        offsets.push(total_size);
-        total_size += self.owner_lockscript.as_slice().len();
         writer.write_all(&molecule::pack_number(total_size as molecule::Number))?;
         for offset in offsets.into_iter() {
             writer.write_all(&molecule::pack_number(offset as molecule::Number))?;
         }
         writer.write_all(self.project_id.as_slice())?;
-        writer.write_all(self.owner_lockscript.as_slice())?;
         Ok(())
     }
     fn build(&self) -> Self::Entity {
@@ -1916,8 +1889,8 @@ impl ::core::fmt::Display for Flag2 {
     fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
         write!(f, "{} {{ ", Self::NAME)?;
         write!(f, "{}: {}", "project_id", self.project_id())?;
-        write!(f, ", {}: {}", "method", self.method())?;
         write!(f, ", {}: {}", "function_call", self.function_call())?;
+        write!(f, ", {}: {}", "caller_lockscript", self.caller_lockscript())?;
         let extra_count = self.count_extra_fields();
         if extra_count != 0 {
             write!(f, ", .. ({} fields)", extra_count)?;
@@ -1958,13 +1931,13 @@ impl Flag2 {
         let end = molecule::unpack_number(&slice[8..]) as usize;
         Hash::new_unchecked(self.0.slice(start..end))
     }
-    pub fn method(&self) -> String {
+    pub fn function_call(&self) -> String {
         let slice = self.as_slice();
         let start = molecule::unpack_number(&slice[8..]) as usize;
         let end = molecule::unpack_number(&slice[12..]) as usize;
         String::new_unchecked(self.0.slice(start..end))
     }
-    pub fn function_call(&self) -> String {
+    pub fn caller_lockscript(&self) -> String {
         let slice = self.as_slice();
         let start = molecule::unpack_number(&slice[12..]) as usize;
         if self.has_extra_fields() {
@@ -2002,8 +1975,8 @@ impl molecule::prelude::Entity for Flag2 {
     fn as_builder(self) -> Self::Builder {
         Self::new_builder()
             .project_id(self.project_id())
-            .method(self.method())
             .function_call(self.function_call())
+            .caller_lockscript(self.caller_lockscript())
     }
 }
 #[derive(Clone, Copy)]
@@ -2026,8 +1999,8 @@ impl<'r> ::core::fmt::Display for Flag2Reader<'r> {
     fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
         write!(f, "{} {{ ", Self::NAME)?;
         write!(f, "{}: {}", "project_id", self.project_id())?;
-        write!(f, ", {}: {}", "method", self.method())?;
         write!(f, ", {}: {}", "function_call", self.function_call())?;
+        write!(f, ", {}: {}", "caller_lockscript", self.caller_lockscript())?;
         let extra_count = self.count_extra_fields();
         if extra_count != 0 {
             write!(f, ", .. ({} fields)", extra_count)?;
@@ -2059,13 +2032,13 @@ impl<'r> Flag2Reader<'r> {
         let end = molecule::unpack_number(&slice[8..]) as usize;
         HashReader::new_unchecked(&self.as_slice()[start..end])
     }
-    pub fn method(&self) -> StringReader<'r> {
+    pub fn function_call(&self) -> StringReader<'r> {
         let slice = self.as_slice();
         let start = molecule::unpack_number(&slice[8..]) as usize;
         let end = molecule::unpack_number(&slice[12..]) as usize;
         StringReader::new_unchecked(&self.as_slice()[start..end])
     }
-    pub fn function_call(&self) -> StringReader<'r> {
+    pub fn caller_lockscript(&self) -> StringReader<'r> {
         let slice = self.as_slice();
         let start = molecule::unpack_number(&slice[12..]) as usize;
         if self.has_extra_fields() {
@@ -2134,8 +2107,8 @@ impl<'r> molecule::prelude::Reader<'r> for Flag2Reader<'r> {
 #[derive(Debug, Default)]
 pub struct Flag2Builder {
     pub(crate) project_id: Hash,
-    pub(crate) method: String,
     pub(crate) function_call: String,
+    pub(crate) caller_lockscript: String,
 }
 impl Flag2Builder {
     pub const FIELD_COUNT: usize = 3;
@@ -2143,12 +2116,12 @@ impl Flag2Builder {
         self.project_id = v;
         self
     }
-    pub fn method(mut self, v: String) -> Self {
-        self.method = v;
-        self
-    }
     pub fn function_call(mut self, v: String) -> Self {
         self.function_call = v;
+        self
+    }
+    pub fn caller_lockscript(mut self, v: String) -> Self {
+        self.caller_lockscript = v;
         self
     }
 }
@@ -2158,8 +2131,8 @@ impl molecule::prelude::Builder for Flag2Builder {
     fn expected_length(&self) -> usize {
         molecule::NUMBER_SIZE * (Self::FIELD_COUNT + 1)
             + self.project_id.as_slice().len()
-            + self.method.as_slice().len()
             + self.function_call.as_slice().len()
+            + self.caller_lockscript.as_slice().len()
     }
     fn write<W: molecule::io::Write>(&self, writer: &mut W) -> molecule::io::Result<()> {
         let mut total_size = molecule::NUMBER_SIZE * (Self::FIELD_COUNT + 1);
@@ -2167,16 +2140,16 @@ impl molecule::prelude::Builder for Flag2Builder {
         offsets.push(total_size);
         total_size += self.project_id.as_slice().len();
         offsets.push(total_size);
-        total_size += self.method.as_slice().len();
-        offsets.push(total_size);
         total_size += self.function_call.as_slice().len();
+        offsets.push(total_size);
+        total_size += self.caller_lockscript.as_slice().len();
         writer.write_all(&molecule::pack_number(total_size as molecule::Number))?;
         for offset in offsets.into_iter() {
             writer.write_all(&molecule::pack_number(offset as molecule::Number))?;
         }
         writer.write_all(self.project_id.as_slice())?;
-        writer.write_all(self.method.as_slice())?;
         writer.write_all(self.function_call.as_slice())?;
+        writer.write_all(self.caller_lockscript.as_slice())?;
         Ok(())
     }
     fn build(&self) -> Self::Entity {

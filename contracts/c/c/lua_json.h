@@ -18,7 +18,7 @@ int _table_to_json(lua_State *L, int table_pos, uint8_t *cache, size_t size, siz
     if (lua_next(L, table_pos))
     {
         // assume array if first key is number
-        cache[offset++] = is_array = lua_isnumber(L, -2) ? '[' : '{';
+        cache[offset++] = (is_array = lua_isnumber(L, -2)) ? '[' : '{';
         cache[offset++] = '\"';
         const char *key = lua_tostring(L, -2);
         memcpy(cache + offset, key, strlen(key));
@@ -31,11 +31,12 @@ int _table_to_json(lua_State *L, int table_pos, uint8_t *cache, size_t size, siz
             {
                 const char *value = lua_tostring(L, -1);
                 memcpy(cache + offset, value, strlen(value));
+                offset += strlen(value);
                 break;
             }
             case LUA_TTABLE:
             {
-                CHECK_RET(_table_to_json(L, -1, cache + offset, size - offset, 0));
+                CHECK_RET(_table_to_json(L, lua_gettop(L), cache + offset, size - offset, 0));
                 break;
             }
             default:
@@ -43,7 +44,7 @@ int _table_to_json(lua_State *L, int table_pos, uint8_t *cache, size_t size, siz
                 cache[offset++] = '\"';
                 const char *value = lua_tostring(L, -1);
                 memcpy(cache + offset, value, strlen(value));
-                offset += strlen(key);
+                offset += strlen(value);
                 cache[offset++] = '\"';
                 break;
             }
@@ -100,14 +101,12 @@ int _json_to_table_internal(lua_State *L, char *json, jsmntok_t *tokens, int sta
             case JSMN_PRIMITIVE:
             case JSMN_STRING:
             {
-                if (strncmp(json + tokens[j].start, "true", strlen("true")))
+                if (strncmp(json + tokens[j].start, "true", strlen("true")) == 0)
                 {
-                    ckb_debug("it's true");
                     lua_pushboolean(L, true);
                 }
-                else if (strncmp(json + tokens[j].start, "false", strlen("false")))
+                else if (strncmp(json + tokens[j].start, "false", strlen("false")) == 0)
                 {
-                    ckb_debug("it's false");
                     lua_pushboolean(L, false);
                 }
                 else
@@ -117,8 +116,8 @@ int _json_to_table_internal(lua_State *L, char *json, jsmntok_t *tokens, int sta
                 char old_char = json[tokens[i].end];
                 json[tokens[i].end] = '\0';
                 lua_setfield(L, -2, json + tokens[i].start);
-                ckb_debug(json + tokens[i].start);
                 json[tokens[i].end] = old_char;
+                i += 1;
                 break;
             }
             case JSMN_ARRAY:
@@ -128,6 +127,7 @@ int _json_to_table_internal(lua_State *L, char *json, jsmntok_t *tokens, int sta
                     lua_pushlstring(L, json + tokens[j + k].start, tokens[j + k].end - tokens[j + k].start);
                     lua_rawgeti(L, -2, k);
                 }
+                i += tokens[i + 1].size + 1;
                 break;
             }
             case JSMN_OBJECT:
@@ -155,6 +155,7 @@ int _json_to_table_internal(lua_State *L, char *json, jsmntok_t *tokens, int sta
 
 int _json_to_table(lua_State *L, char *json)
 {
+    ckb_debug(json);
     jsmn_parser parser;
     jsmntok_t tokens[MAX_JSON_TOKEN_COUNT];
 

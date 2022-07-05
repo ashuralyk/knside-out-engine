@@ -1,6 +1,4 @@
 make all --print-data-base --no-builtin-variables --no-builtin-rules --question
-make: *** No rule to make target 'all'.  Stop.
-
 # GNU Make 4.2.1
 # Built for x86_64-pc-linux-gnu
 # Copyright (C) 1988-2016 Free Software Foundation, Inc.
@@ -8,7 +6,7 @@ make: *** No rule to make target 'all'.  Stop.
 # This is free software: you are free to change and redistribute it.
 # There is NO WARRANTY, to the extent permitted by law.
 
-# Make data base, printed on Mon Jun 20 15:23:30 2022
+# Make data base, printed on Tue Jul  5 19:07:31 2022
 
 # Variables
 
@@ -57,7 +55,7 @@ PATH = /home/vimchain/.vscode-server/bin/30d9c6cd9483b2cc586687151bcbcd635f37363
 # environment
 VSCODE_LOG_STACK = false
 # environment
-VSCODE_IPC_HOOK_CLI = /tmp/vscode-ipc-a3d0ed2b-1bef-44bc-bd97-d16570ea2518.sock
+VSCODE_IPC_HOOK_CLI = /tmp/vscode-ipc-c2afe034-d2d2-415d-9a88-02cf579fa78e.sock
 # default
 .FEATURES := target-specific order-only second-expansion else-if shortest-stem undefine oneshell archives jobserver output-sync check-symlink load
 # environment
@@ -75,7 +73,7 @@ PWD = /home/vimchain/roguecamp/lua-engine
 # default
 .LOADED := 
 # environment
-WSL_INTEROP = /run/WSL/1645_interop
+WSL_INTEROP = /run/WSL/11_interop
 # environment
 MANPATH = /home/linuxbrew/.linuxbrew/share/man:
 # environment
@@ -127,7 +125,7 @@ MFLAGS = -pqrR
 # automatic
 *D = $(patsubst %/,%,$(dir $*))
 # environment
-windows_ip = 172.28.32.1
+windows_ip = 172.24.32.1
 # environment
 HOMEBREW_PREFIX = /home/linuxbrew/.linuxbrew
 # automatic
@@ -143,7 +141,7 @@ MAKEFILES :=
 # automatic
 <F = $(notdir $<)
 # environment
-https_proxy = 172.28.32.1:1082
+https_proxy = 172.24.32.1:1082
 # environment
 LC_ALL = C
 # environment
@@ -157,7 +155,7 @@ SUFFIXES :=
 # default
 .RECIPEPREFIX := 
 # environment
-http_proxy = 172.28.32.1:1082
+http_proxy = 172.24.32.1:1082
 # environment
 LANG = C
 # environment
@@ -175,9 +173,9 @@ WSL_DISTRO_NAME = Ubuntu-20.04
 
 # Directories
 
-# . (device 2064, inode 1581057): 17 files, no impossibilities.
+# . (device 2064, inode 1581057): 18 files, no impossibilities.
 
-# 17 files, no impossibilities in 1 directories.
+# 18 files, no impossibilities in 1 directories.
 
 # Implicit Rules
 
@@ -227,12 +225,14 @@ GNUmakefile:
 
 # No general ('VPATH' variable) search path.
 
-# strcache buffers: 1 (0) / strings = 25 / storage = 235 B / avg = 9 B
-# current buf: size = 8162 B / used = 235 B / count = 25 / avg = 9 B
+# strcache buffers: 1 (0) / strings = 26 / storage = 242 B / avg = 9 B
+# current buf: size = 8162 B / used = 242 B / count = 26 / avg = 9 B
 
-# strcache performance: lookups = 28 / hit rate = 10%
+# strcache performance: lookups = 29 / hit rate = 10%
 # hash-table stats:
-# Load=25/8192=0%, Rehash=0, Collisions=1/28=4%
-# Finished Make data base on Mon Jun 20 15:23:30 2022
+# Load=26/8192=0%, Rehash=0, Collisions=1/29=3%
+# Finished Make data base on Tue Jul  5 19:07:31 2022
 
  
+make: *** No rule to make target 'all'.  Stop.
+

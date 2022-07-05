@@ -4,27 +4,9 @@
 -- =========================
 
 --[[
-    全局环境变量，由外部注入
-
-    CONTEXT = {}
-]] 
-
-ACTION = {
-    Mint = 1,
-    Update = 2,
-    Transfer = 3,
-    Burn = 4,
-    Readonly = 5,
-}
-REMOTE = {
-    Send = 1,
-    Receive = 2,
-}
-
---[[
     Global 数据初始化
 ]]
-function InitGlobal ()
+function construct ()
     return {
         minted_nft_count = 0,
         max_nft_count = 0,
@@ -39,90 +21,44 @@ end
 --[[
     定义方法
 ]]
+function updateGlobal (key, value)
+    assert(msg.sender == msg.owner, "sender must be owner")
+    msg.global[key] = value
+end
 
-UpdateGlobal = {
-    metadata = {
-        only_owner  = true,
-        need_global = true,
-        action      = ACTION.Update,
-    },
-    call = function (key, value)
-        CONTEXT.Global[key] = value
+function mint ()
+    assert(msg.ckb_cost(500), "ckb not enough")
+    local new_count = msg.global.minted_nft_count + 1
+    if new_count <= msg.global.max_nft_count then
+        msg.global.minted_nft_count = new_count
+        msg.global.current_token_id = msg.global.current_token_id + 1
+        msg.mint({
+            token_id = msg.global.current_token_id,
+            glossaries = {}
+        })
     end
-}
+end
 
-ReadConfig = {
-    metadata = {
-        action = ACTION.Readonly,
-    },
-    call = function ()
-        return 5
-    end
-}
+function update (key, value)
+    msg.global.updated_nft_count = msg.global.updated_nft_count + 1
+    msg.data.glossaries[key] = value
+    msg.update(msg.data)
+end
 
-Mint = {
-    metadata = {
-        need_global = true,
-        action      = ACTION.Mint,
-    },
-    ckbCost = function ()
-        return 500
-    end,
-    call = function ()
-        local new_count = CONTEXT.Global.minted_nft_count + 1
-        if new_count <= CONTEXT.Global.max_nft_count then
-            CONTEXT.Global.minted_nft_count = new_count
-            CONTEXT.Global.current_token_id = CONTEXT.Global.current_token_id + 1
-            return {
-                token_id = CONTEXT.Global.current_token_id,
-                glossaries = {}
-            }
-        end
-    end
-}
+function transfer (to)
+    msg.global.transfered_nft_count = msg.global.transfered_nft_count + 1
+    msg.transfer(to, msg.data)
+end
 
-Update = {
-    metadata = {
-        need_global = true,
-        action      = ACTION.Update,
-    },
-    call = function (key, value)
-        CONTEXT.Global.updated_nft_count = CONTEXT.Global.updated_nft_count + 1
-        CONTEXT.Personal.glossaries[key] = value
-    end
-}
-
-Transfer = {
-    metadata = {
-        need_global = true,
-        action      = ACTION.Transfer,
-    },
-    call = function ()
-        CONTEXT.Global.transfered_nft_count = CONTEXT.Global.transfered_nft_count + 1
-    end
-}
-
-Burn = {
-    metadata = {
-        need_global = true,
-        action      = ACTION.Burn
-    },
-    call = function ()
-        CONTEXT.Global.burned_nft_count = CONTEXT.Global.burned_nft_count + 1
-    end
-}
+function burn ()
+    msg.global.burned_nft_count = msg.global.burned_nft_count + 1
+    msg.burn()
+end
 
 --[[
     合约交互调用
 ]]
-
-ComposeTo = {
-    metadata = {
-        need_global = true,
-        action = ACTION.Burn,
-        cross_call = REMOTE.Send,
-    },
-    call = function ()
-        CONTEXT.RemoteContractCall(CONTEXT.Global.loot_project_id, "ComposeFrom", CONTEXT.Personal)
-    end
-}
+function composeTo ()
+    msg.xcall(msg.global.loot_project_id, "composeFrom", msg.data)
+    msg.burn(msg.sender)
+end

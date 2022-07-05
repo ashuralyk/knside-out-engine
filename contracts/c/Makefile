@@ -14,7 +14,7 @@ via-docker:
 	docker run --rm -v `pwd`:/code ${BUILDER_DOCKER} bash -c "cd /code && make all"
 	cp ./build/insideout $(ARGS)
 
-all: build/insideout
+all: clean build/insideout
 
 build/insideout: build/main.o build/liblua.a
 	$(LD) $^ -o $@ $(LDFLAGS)
@@ -33,9 +33,9 @@ build/liblua.a:
 	KABLETOP=1 make -C ./lua a
 	cp ./lua/build/liblua.a $@
 
-clean-insideout:
+clean:
 	rm -rf build/*.o build/insideout
 
-clean: clean-insideout
+clean-all: clean
 	rm -rf build/*.a build/debug
 	make -C ./lua clean

@@ -22,12 +22,11 @@ table Flag_0 {
 // represent personal data
 table Flag_1 {
     project_id: Hash,
-    owner_lockscript: String,
 }
 
 // represent native or remote contract reqeust call
 table Flag_2 {
     project_id: Hash,
-    method: String,
     function_call: String,
+    caller_lockscript: String,
 }

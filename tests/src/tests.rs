@@ -78,10 +78,10 @@ fn test_success_deploy_project() {
     // build outputs data
     let lua = mlua::Lua::new();
     lua.load(&luacode).exec().expect("exec lua code");
-    let func_init_global: mlua::Function = lua.globals().get("InitGlobal").expect("get InitGlobal");
+    let func_init_global: mlua::Function = lua.globals().get("construct").expect("get construct");
     let global_data = func_init_global
         .call::<_, mlua::Table>(())
-        .expect("call InitGlobal");
+        .expect("call construct");
     let global_data_json = serde_json::to_string(&global_data).unwrap();
     println!("global_json = {}", global_data_json);
     let outputs_data = vec![
