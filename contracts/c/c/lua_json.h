@@ -153,14 +153,17 @@ int _json_to_table_internal(lua_State *L, char *json, jsmntok_t *tokens, int sta
     return CKB_SUCCESS;
 }
 
-int _json_to_table(lua_State *L, char *json)
+int _json_to_table(lua_State *L, char *json, size_t len)
 {
+    // debug print json data
+    json[len] = '\0';
     ckb_debug(json);
+
     jsmn_parser parser;
     jsmntok_t tokens[MAX_JSON_TOKEN_COUNT];
 
     jsmn_init(&parser);
-    int count = jsmn_parse(&parser, json, strlen(json), tokens, MAX_JSON_TOKEN_COUNT);
+    int count = jsmn_parse(&parser, json, len, tokens, MAX_JSON_TOKEN_COUNT);
     if (count < 1 || tokens[0].type != JSMN_OBJECT)
     {
         return ERROR_JSON_TO_TABLE;

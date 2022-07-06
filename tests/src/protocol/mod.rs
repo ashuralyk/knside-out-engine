@@ -2,6 +2,7 @@
 
 #[allow(clippy::all)]
 mod protocol;
+
 use molecule::prelude::{Builder, Byte, Entity};
 
 fn mol_hash(v: &[u8; 32]) -> protocol::Hash {
@@ -51,4 +52,16 @@ pub fn mol_flag_0(hash: &[u8; 32]) -> Vec<u8> {
         .to_vec();
     flag_0_bytes.insert(0, 0u8);
     flag_0_bytes
+}
+
+pub fn mol_flag_2(hash: &[u8; 32], method: &str, lockscript: &[u8]) -> Vec<u8> {
+    let mut flag_2_bytes = protocol::Flag2::new_builder()
+        .project_id(mol_hash(hash))
+        .function_call(mol_string(method.as_bytes()))
+        .caller_lockscript(mol_string(lockscript))
+        .build()
+        .as_bytes()
+        .to_vec();
+    flag_2_bytes.insert(0, 2u8);
+    flag_2_bytes
 }

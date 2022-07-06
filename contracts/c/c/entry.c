@@ -1,17 +1,21 @@
 #include "lua_wrap.h"
 #include "high_level.h"
 
-int _apply_lock_args(void *L, size_t i, uint8_t *lock_args, size_t len, int herr)
+int _apply_lock_args(void *L, size_t i, mol_seg_t lock_args, mol_seg_t data, int herr)
 {
-    if (lock_args[0] != 2)
+    ckb_debug("apply");
+    if (lock_args.ptr[0] != 2)
     {
         return ERROR_REQUEST_FLAG;
     }
     int ret = CKB_SUCCESS;
     uint8_t function_call[MAX_FUNCTION_CALL_SIZE] = { 0 };
-    CHECK_RET(ckbx_flag2_load_function_call(lock_args + 1, len - 1, function_call, MAX_FUNCTION_CALL_SIZE));
+    CHECK_RET(ckbx_flag2_load_function_call(
+        lock_args.ptr + 1, lock_args.size - 1, function_call, MAX_FUNCTION_CALL_SIZE
+    ));
     uint8_t lock_hash[HASH_SIZE];
-    CHECK_RET(ckbx_flag2_load_caller_lockhash(lock_args + 1, len - 1, lock_hash));
+    CHECK_RET(ckbx_flag2_load_caller_lockhash(lock_args.ptr + 1, lock_args.size - 1, lock_hash));
+    CHECK_RET(lua_inject_json_context(L, data.ptr, data.size, "data"));
     CHECK_RET(lua_inject_auth_context(L, lock_hash, "sender"));
     if (luaL_loadstring((lua_State *)L, (const char *)function_call) || lua_pcall((lua_State *)L, 0, 0, herr))
     {
@@ -32,12 +36,20 @@ int lua_init(lua_State *L, int herr)
         function _compare_tables(tab1, tab2) \
             print('do compare') \
             for k, v in pairs(tab1) do \
-                if v ~= tab2[k] then \
+                if type(v) == 'object' then \
+                    if type(tab2[k]) ~= 'object' or _compare_tables(v, tab2[k]) == false then \
+                        return false \
+                    end \
+                elseif tostring(v) ~= tostring(tab2[k]) then \
                     return false \
                 end \
             end \
             for k, v in pairs(tab2) do \
-                if v ~= tab1[k] then \
+                if type(v) == 'object' then \
+                    if type(tab1[k]) == 'object' or _compare_tables(v, tab1[k]) == false then \
+                        return false \
+                    end \
+                elseif tostring(v) ~= tostring(tab1[k]) then \
                     return false \
                 end \
             end \
@@ -78,30 +90,26 @@ int lua_verify(lua_State *L, int herr)
             // global data update mod
             if (ret == CKB_SUCCESS)
             {
-                cache[len] = '\0';
-                CHECK_RET(lua_inject_global_context(L, (char *)cache));
+                ckb_debug("update mod");
+                CHECK_RET(lua_inject_json_context(L, cache, len, "global"));
                 size_t index;
                 CHECK_RET(ckbx_check_project_exist(CKB_SOURCE_CELL_DEP, project_id, &index));
-                if (index != (size_t)-1)
+                if (index == (size_t)-1)
                 {
-                    ckb_debug("update mod");
-                    mol_seg_t lua_code_seg;
-                    CHECK_RET(ckbx_load_project_lua_code(cache, MAX_CACHE_SIZE, CKB_SOURCE_CELL_DEP, index, &lua_code_seg));
-                    // load lua code into lua_vm
-                    CHECK_RET(lua_load_project_code(L, lua_code_seg.ptr, lua_code_seg.size, herr));
-                    // inject owner hash
-                    uint8_t lock_hash[HASH_SIZE];
-                    len = HASH_SIZE;
-                    ckb_load_cell_by_field(lock_hash, &len, 0, index, CKB_SOURCE_CELL_DEP, CKB_CELL_FIELD_LOCK_HASH);
-                    CHECK_RET(lua_inject_auth_context(L, lock_hash, "owner"));
-                    // apply each of requests
-                    ApplyParams apply = { L, herr, _apply_lock_args };
-                    CHECK_RET(ckbx_apply_all_lock_args_by_code_hash(cache, MAX_CACHE_SIZE, CKB_SOURCE_INPUT, code_hash, &apply));
+                    return ERROR_NO_DEPLOYMENT_CELL;
                 }
-                else
-                {
-                    ckb_debug("request mod");
-                }
+                mol_seg_t lua_code_seg;
+                CHECK_RET(ckbx_load_project_lua_code(cache, MAX_CACHE_SIZE, CKB_SOURCE_CELL_DEP, index, &lua_code_seg));
+                // load lua code into lua_vm
+                CHECK_RET(lua_load_project_code(L, lua_code_seg.ptr, lua_code_seg.size, herr));
+                // inject owner hash
+                uint8_t lock_hash[HASH_SIZE];
+                len = HASH_SIZE;
+                ckb_load_cell_by_field(lock_hash, &len, 0, index, CKB_SOURCE_CELL_DEP, CKB_CELL_FIELD_LOCK_HASH);
+                CHECK_RET(lua_inject_auth_context(L, lock_hash, "owner"));
+                // apply each of requests
+                ApplyParams apply = { L, herr, _apply_lock_args };
+                CHECK_RET(ckbx_apply_all_lock_args_by_code_hash(cache, MAX_CACHE_SIZE, CKB_SOURCE_INPUT, code_hash, &apply));
                 // check input/output global data
                 len = MAX_CACHE_SIZE;
                 CHECK_RET(ckb_load_cell_data(cache, &len, 0, 0, CKB_SOURCE_GROUP_OUTPUT));
