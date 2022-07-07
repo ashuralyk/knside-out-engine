@@ -172,6 +172,12 @@ void STRCAT_TABLE_KEY_VALUE(lua_State *L, char *buffer, int size, int index, int
         snprintf(tmp, sizeof(tmp), "\"%s\"", lua_tostring(L, index));
         strncat(buffer, tmp, size);
     }
+    else if (lua_isboolean(L, index))
+    {
+        char tmp[256];
+        snprintf(tmp, sizeof(tmp), "%s", lua_toboolean(L, index) ? "true" : "false");
+        strncat(buffer, tmp, size);
+    }
     if (is_key)
     {
         strncat(buffer, "] => ", size);

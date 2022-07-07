@@ -39,7 +39,7 @@ int lua_inject_json_context(lua_State *L, uint8_t *json_data, size_t len, const 
     int ret = CKB_SUCCESS;
     if (len > 0)
     {
-        CHECK_RET(_json_to_table(L, (char *)json_data, len));
+        CHECK_RET(_json_to_table(L, (char *)json_data, len, NULL));
     }
     else
     {
@@ -86,7 +86,7 @@ int lua_check_global_data(lua_State *L, const char *method, uint8_t *expected_js
     }
     int ret = CKB_SUCCESS;
     // load second table parameter
-    CHECK_RET(_json_to_table(L, (char *)expected_json, len));
+    CHECK_RET(_json_to_table(L, (char *)expected_json, len, NULL));
     // call to compare two tables
     lua_pcall(L, 2, 1, herr);
     if (!lua_toboolean(L, -1))

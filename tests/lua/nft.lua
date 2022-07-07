@@ -14,7 +14,12 @@ function construct ()
         transfered_nft_count = 0,
         updated_nft_count = 0,
         current_token_id = 0,
-        loot_project_id = '0xabcdefg',
+        loot_project_id = {
+            hash = '0xabcdefg',
+            version = 0,
+            enable = true,
+        },
+        request_array = { 1, 'abc', false }
     }
 end
 
@@ -59,6 +64,6 @@ end
     合约交互调用
 ]]
 function composeTo ()
-    msg.xcall(msg.global.loot_project_id, "composeFrom", msg.data)
+    msg.xcall(msg.global.loot_project_id.hash, "composeFrom", msg.data)
     msg.burn(msg.sender)
 end

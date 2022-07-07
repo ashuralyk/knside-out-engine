@@ -34,10 +34,9 @@ int lua_init(lua_State *L, int herr)
 
     const char *table_checker_chunck = " \
         function _compare_tables(tab1, tab2) \
-            print('do compare') \
             for k, v in pairs(tab1) do \
-                if type(v) == 'object' then \
-                    if type(tab2[k]) ~= 'object' or _compare_tables(v, tab2[k]) == false then \
+                if type(v) == 'table' then \
+                    if type(tab2[k]) ~= 'table' or _compare_tables(v, tab2[k]) == false then \
                         return false \
                     end \
                 elseif tostring(v) ~= tostring(tab2[k]) then \
@@ -45,8 +44,8 @@ int lua_init(lua_State *L, int herr)
                 end \
             end \
             for k, v in pairs(tab2) do \
-                if type(v) == 'object' then \
-                    if type(tab1[k]) == 'object' or _compare_tables(v, tab1[k]) == false then \
+                if type(v) == 'table' then \
+                    if type(tab1[k]) ~= 'table' or _compare_tables(v, tab1[k]) == false then \
                         return false \
                     end \
                 elseif tostring(v) ~= tostring(tab1[k]) then \

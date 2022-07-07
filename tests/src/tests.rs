@@ -125,9 +125,14 @@ fn test_success_update_global_data() {
     let luacode = std::fs::read_to_string("./lua/nft.lua").unwrap();
     let deployment = protocol::mol_deployment(luacode.as_str());
     let flag_0 = protocol::mol_flag_0(&type_id_script.calc_script_hash().unpack());
-    let flag_2 = protocol::mol_flag_2(
+    let flag_2_1 = protocol::mol_flag_2(
         &type_id_script.calc_script_hash().unpack(),
         "updateGlobal('current_token_id', 10)",
+        always_success_lock_script.as_slice(),
+    );
+    let flag_2_2 = protocol::mol_flag_2(
+        &type_id_script.calc_script_hash().unpack(),
+        "updateGlobal('loot_project_id', '0x12345678')",
         always_success_lock_script.as_slice(),
     );
 
@@ -135,8 +140,11 @@ fn test_success_update_global_data() {
     let contract_script = context
         .build_script(&out_point, Bytes::from(flag_0))
         .expect("contract script");
-    let request_script = context
-        .build_script(&out_point, Bytes::from(flag_2))
+    let request_1_script = context
+        .build_script(&out_point, Bytes::from(flag_2_1))
+        .expect("request script");
+    let request_2_script = context
+        .build_script(&out_point, Bytes::from(flag_2_2))
         .expect("request script");
     let contract_dep = CellDep::new_builder().out_point(out_point).build();
 
@@ -170,13 +178,26 @@ fn test_success_update_global_data() {
                 ),
             )
             .build(),
-        // locked personal request cell
+        // locked personal request cell 1
         CellInput::new_builder()
             .previous_output(
                 context.create_cell(
                     CellOutput::new_builder()
                         .capacity(1000.pack())
-                        .lock(request_script)
+                        .lock(request_1_script)
+                        .type_(Some(always_success_lock_script.clone()).pack())
+                        .build(),
+                    Bytes::new(),
+                ),
+            )
+            .build(),
+        // locked personal request cell 2
+        CellInput::new_builder()
+            .previous_output(
+                context.create_cell(
+                    CellOutput::new_builder()
+                        .capacity(1000.pack())
+                        .lock(request_2_script)
                         .type_(Some(always_success_lock_script.clone()).pack())
                         .build(),
                     Bytes::new(),
@@ -193,7 +214,13 @@ fn test_success_update_global_data() {
             .lock(always_success_lock_script.clone())
             .type_(Some(contract_script).pack())
             .build(),
-        // unlocked normal cell
+        // unlocked normal cell for request 1
+        CellOutput::new_builder()
+            .capacity(1000.pack())
+            .lock(always_success_lock_script.clone())
+            .type_(Some(always_success_lock_script.clone()).pack())
+            .build(),
+        // unlocked normal cell for request 2
         CellOutput::new_builder()
             .capacity(1000.pack())
             .lock(always_success_lock_script.clone())
@@ -202,9 +229,10 @@ fn test_success_update_global_data() {
     ];
 
     // build project outputs data
-    let next_global = "{\"current_token_id\":10,\"burned_nft_count\":0,\"minted_nft_count\":0,\"max_nft_count\":0,\"updated_nft_count\":0,\"loot_project_id\":\"0xabcdefg\",\"transfered_nft_count\":0}";
+    let next_global = "{\"current_token_id\":10,\"burned_nft_count\":0,\"minted_nft_count\":0,\"max_nft_count\":0,\"updated_nft_count\":0,\"loot_project_id\":\"0x12345678\",\"transfered_nft_count\":0}";
     let outputs_data = vec![
         Bytes::from_static(next_global.as_bytes()).pack(),
+        Bytes::new().pack(),
         Bytes::new().pack(),
     ];
 
