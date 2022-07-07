@@ -43,12 +43,8 @@ int lua_init(lua_State *L, int herr)
                     return false \
                 end \
             end \
-            for k, v in pairs(tab2) do \
-                if type(v) == 'table' then \
-                    if type(tab1[k]) ~= 'table' or _compare_tables(v, tab1[k]) == false then \
-                        return false \
-                    end \
-                elseif tostring(v) ~= tostring(tab1[k]) then \
+            for k, _ in pairs(tab2) do \
+                if tab1[k] == nil then \
                     return false \
                 end \
             end \
