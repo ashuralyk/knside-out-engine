@@ -26,7 +26,6 @@ table Flag_1 {
 
 // represent native or remote contract reqeust call
 table Flag_2 {
-    project_id: Hash,
     function_call: String,
     caller_lockscript: String,
 }

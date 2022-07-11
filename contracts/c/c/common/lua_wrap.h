@@ -3,6 +3,14 @@
 
 #include "lua_json.h"
 
+typedef int (*LuaFunc)(lua_State *);
+
+typedef struct
+{
+    const char *name;
+    LuaFunc callback;
+} LuaOperation;
+
 void _to_hex(char *hex, uint8_t *bytes, int size)
 {
 	int pointer = 0;
@@ -64,6 +72,25 @@ int lua_inject_auth_context(lua_State *L, uint8_t auth_hash[HASH_SIZE], const ch
     _to_hex(hex, auth_hash, HASH_SIZE);
     lua_pushlstring(L, hex, HASH_HEX_SIZE);
     lua_setfield(L, -2, name);
+    // reset `msg`
+    lua_setglobal(L, "msg");
+    return CKB_SUCCESS;
+}
+
+int lua_inject_operation_context(lua_State *L, LuaOperation *operations, size_t len)
+{
+    // check `msg` or make new one
+    lua_getglobal(L, "msg");
+    if (!lua_istable(L, -1))
+    {
+        lua_newtable(L);
+    }
+    // push functions
+    for (size_t i = 0; i < len; ++i)
+    {
+        lua_pushcfunction(L, operations[i].callback);
+        lua_setfield(L, -2, operations[i].name);
+    }
     // reset `msg`
     lua_setglobal(L, "msg");
     return CKB_SUCCESS;
