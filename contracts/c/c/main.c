@@ -16,7 +16,7 @@ int main()
     lua_pushcfunction(L, contract_error_handler);
     int herr = lua_gettop(L);
 
-	int ret = 0;
+	int ret = CKB_SUCCESS;
 	CHECK_RET(lua_init(L, herr));
 	CHECK_RET(lua_verify(L, herr));
 

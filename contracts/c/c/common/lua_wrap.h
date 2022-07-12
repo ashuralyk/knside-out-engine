@@ -3,13 +3,13 @@
 
 #include "lua_json.h"
 
-typedef int (*LuaFunc)(lua_State *);
+// typedef int (*LuaFunc)(lua_State *);
 
-typedef struct
-{
-    const char *name;
-    LuaFunc callback;
-} LuaOperation;
+// typedef struct
+// {
+//     const char *name;
+//     LuaFunc callback;
+// } LuaOperation;
 
 void _to_hex(char *hex, uint8_t *bytes, int size)
 {
@@ -21,6 +21,97 @@ void _to_hex(char *hex, uint8_t *bytes, int size)
 		memcpy(&hex[pointer], hex_char, strlen(hex_char));
 		pointer += strlen(hex_char);
 	}
+}
+
+void _strcat_table_key_value(lua_State *L, char *buffer, int size, int index, int is_key)
+{
+    if (is_key)
+    {
+        strncat(buffer, "[", size);
+    }
+    if (lua_isinteger(L, index))
+    {
+        char tmp[256];
+        snprintf(tmp, sizeof(tmp), "%lld", lua_tointeger(L, index));
+        strncat(buffer, tmp, size);
+    }
+    else if (lua_isnumber(L, index))
+    {
+        char tmp[256];
+        snprintf(tmp, sizeof(tmp), "%f", lua_tonumber(L, index));
+        strncat(buffer, tmp, size);
+    }
+    else if (lua_isstring(L, index))
+    {
+        char tmp[256];
+        snprintf(tmp, sizeof(tmp), "\"%s\"", lua_tostring(L, index));
+        strncat(buffer, tmp, size);
+    }
+    else if (lua_isboolean(L, index))
+    {
+        char tmp[256];
+        snprintf(tmp, sizeof(tmp), "%s", lua_toboolean(L, index) ? "true" : "false");
+        strncat(buffer, tmp, size);
+    }
+    if (is_key)
+    {
+        strncat(buffer, "] => ", size);
+    }
+}
+
+void _print_table(lua_State *L, int tbl_index, char *prefix)
+{
+    lua_pushnil(L);
+    while (lua_next(L, tbl_index))
+    {
+        char buffer[512] = "";
+        lua_pushvalue(L, -2);
+        strncat(buffer, prefix, sizeof(buffer) - 1);
+        _strcat_table_key_value(L, buffer, sizeof(buffer) - 1, -1, 1);
+        if (lua_istable(L, -2))
+        {
+            strcat(prefix, "  ");
+            ckb_debug(buffer);
+            _print_table(L, lua_gettop(L) - 1, prefix);
+        }
+        else
+        {
+            _strcat_table_key_value(L, buffer, sizeof(buffer) - 1, -2, 0);
+            ckb_debug(buffer);
+        }
+        lua_pop(L, 2);
+    }
+}
+
+int lua_println(lua_State *L)
+{
+    for (int i = 1; i <= lua_gettop(L); ++i)
+    {
+        if (lua_isstring(L, i))
+        {
+            ckb_debug(lua_tostring(L, i));
+        }
+        else if (lua_istable(L, i))
+        {
+            char prefix[256] = "";
+            ckb_debug("--------------TABLE PRINT START--------------");
+            _print_table(L, i, prefix);
+            ckb_debug("--------------TABLE PRINT CLOSE--------------");
+        }
+        else if (lua_isinteger(L, i))
+        {
+            char buffer[256];
+            snprintf(buffer, sizeof(buffer), "%lld", lua_tointeger(L, i));
+            ckb_debug(buffer);
+        }
+        else if (lua_isnumber(L, i))
+        {
+            char buffer[256];
+            snprintf(buffer, sizeof(buffer), "%f", lua_tonumber(L, i));
+            ckb_debug(buffer);
+        }
+    }
+    return 0;
 }
 
 int lua_load_project_code(lua_State *L, uint8_t *code, size_t len, int herr)
@@ -77,24 +168,24 @@ int lua_inject_auth_context(lua_State *L, uint8_t auth_hash[HASH_SIZE], const ch
     return CKB_SUCCESS;
 }
 
-int lua_inject_operation_context(lua_State *L, LuaOperation *operations, size_t len)
-{
-    // check `msg` or make new one
-    lua_getglobal(L, "msg");
-    if (!lua_istable(L, -1))
-    {
-        lua_newtable(L);
-    }
-    // push functions
-    for (size_t i = 0; i < len; ++i)
-    {
-        lua_pushcfunction(L, operations[i].callback);
-        lua_setfield(L, -2, operations[i].name);
-    }
-    // reset `msg`
-    lua_setglobal(L, "msg");
-    return CKB_SUCCESS;
-}
+// int lua_inject_operation_context(lua_State *L, LuaOperation *operations, size_t len)
+// {
+//     // check `msg` or make new one
+//     lua_getglobal(L, "msg");
+//     if (!lua_istable(L, -1))
+//     {
+//         lua_newtable(L);
+//     }
+//     // push functions
+//     for (size_t i = 0; i < len; ++i)
+//     {
+//         lua_pushcfunction(L, operations[i].callback);
+//         lua_setfield(L, -2, operations[i].name);
+//     }
+//     // reset `msg`
+//     lua_setglobal(L, "msg");
+//     return CKB_SUCCESS;
+// }
 
 int lua_check_global_data(lua_State *L, const char *method, uint8_t *expected_json, size_t len, int herr)
 {

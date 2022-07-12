@@ -4,7 +4,7 @@
 int lua_init(lua_State *L, int herr)
 {
     luaL_openlibs(L);
-    inject_ckb_functions(L);
+    lua_register(L, "print", lua_println);
 
     const char *table_checker_chunck = " \
         function _compare_tables(tab1, tab2) \
@@ -13,7 +13,7 @@ int lua_init(lua_State *L, int herr)
                     if type(tab2[k]) ~= 'table' or _compare_tables(v, tab2[k]) == false then \
                         return false \
                     end \
-                elseif tostring(v) ~= tostring(tab2[k]) then \
+                elseif v ~= tab2[k] then \
                     return false \
                 end \
             end \
@@ -27,7 +27,7 @@ int lua_init(lua_State *L, int herr)
     ";
     if (luaL_loadstring(L, table_checker_chunck) || lua_pcall(L, 0, 0, herr))
     {
-        ckb_debug("invalid table checker chunck.");
+        ckb_debug("[ERROR] invalid table checker chunck.");
         return ERROR_LUA_INIT;
     }
 
@@ -51,11 +51,19 @@ int lua_verify(lua_State *L, int herr)
         case FLAG_GLOBAL:
         {
             CHECK_RET(verify_global_data(cache, L, herr, script_args, code_hash));
+            break;
         }
         // represent personal data
         case FLAG_PERSONAL:
         {
+            CHECK_RET(inject_personal_operation(L, herr));
             CHECK_RET(verify_personal_data(cache, L, herr, script_args, code_hash));
+            break;
+        }
+        // represent request data
+        case FLAG_REQUEST:
+        {
+
         }
     }
 

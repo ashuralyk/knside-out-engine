@@ -8,6 +8,13 @@
 
 typedef int (*ApplyFunc) (void *, size_t, mol_seg_t, mol_seg_t, int);
 
+typedef struct
+{
+    void *L;
+    int herr;
+    ApplyFunc call;
+} ApplyParams;
+
 void _print_hex(const char *prefix, unsigned char *msg, int size) {
     char debug[1024] = "";
     char x[16];
@@ -22,12 +29,62 @@ void _print_hex(const char *prefix, unsigned char *msg, int size) {
     ckb_debug(print);
 }
 
-typedef struct
+int ckbx_flag0_load_project_id(uint8_t *cache, size_t len, uint8_t project_id[HASH_SIZE])
 {
-    void *L;
-    int herr;
-    ApplyFunc call;
-} ApplyParams;
+    mol_seg_t flag0_seg = { cache, len };
+    if (MolReader_Flag_0_verify(&flag0_seg, false) != MOL_OK)
+    {
+        return ERROR_FLAG_0_BYTES;
+    }
+    mol_seg_t project_id_seg = MolReader_Flag_0_get_project_id(&flag0_seg);
+    memcpy(project_id, project_id_seg.ptr, project_id_seg.size);
+    return CKB_SUCCESS;
+}
+
+int ckbx_flag1_load_project_id(uint8_t *cache, size_t len, uint8_t project_id[HASH_SIZE])
+{
+    mol_seg_t flag1_seg = { cache, len };
+    if (MolReader_Flag_1_verify(&flag1_seg, false) != MOL_OK)
+    {
+        return ERROR_FLAG_1_BYTES;
+    }
+    mol_seg_t project_id_seg = MolReader_Flag_1_get_project_id(&flag1_seg);
+    memcpy(project_id, project_id_seg.ptr, project_id_seg.size);
+    return CKB_SUCCESS;
+}
+
+int ckbx_flag2_load_function_call(uint8_t *cache, size_t len, uint8_t *function_call, size_t size)
+{
+    mol_seg_t flag2_seg = { cache, len };
+    if (MolReader_Flag_2_verify(&flag2_seg, false) != MOL_OK)
+    {
+        return ERROR_FLAG_2_BYTES;
+    }
+    mol_seg_t function_call_seg = MolReader_Flag_2_get_function_call(&flag2_seg);
+    mol_seg_t function_call_bytes_seg = MolReader_String_raw_bytes(&function_call_seg);
+    if (function_call_bytes_seg.size > size)
+    {
+        return ERROR_FLAG_2_BYTES;
+    }
+    memcpy(function_call, function_call_bytes_seg.ptr, function_call_bytes_seg.size);
+    return CKB_SUCCESS;
+}
+
+int ckbx_flag2_load_caller_lockhash(uint8_t *cache, size_t len, uint8_t lock_hash[HASH_SIZE])
+{
+    mol_seg_t flag2_seg = { cache, len };
+    if (MolReader_Flag_2_verify(&flag2_seg, false) != MOL_OK)
+    {
+        return ERROR_FLAG_2_BYTES;
+    }
+    mol_seg_t caller_lockscript_seg = MolReader_Flag_2_get_caller_lockscript(&flag2_seg);
+    mol_seg_t caller_lockscript_bytes_seg = MolReader_String_raw_bytes(&caller_lockscript_seg);
+    blake2b(
+        lock_hash, HASH_SIZE, caller_lockscript_bytes_seg.ptr, caller_lockscript_bytes_seg.size,
+        NULL, 0
+    );
+    return CKB_SUCCESS;
+}
 
 int ckbx_load_script(uint8_t *cache, size_t len, mol_seg_t *args_seg, uint8_t code_hash[HASH_SIZE])
 {
@@ -49,10 +106,9 @@ int ckbx_load_script(uint8_t *cache, size_t len, mol_seg_t *args_seg, uint8_t co
     return CKB_SUCCESS;
 }
 
-int ckbx_apply_all_lock_args_by_code_hash(
+int ckbx_apply_lock_args_by_code_hash(
     uint8_t *cache, size_t len, size_t source, uint8_t code_hash[HASH_SIZE], ApplyParams *callback
 ) {
-    uint8_t json_data[MAX_JSON_SIZE] = { 0 };
     for (size_t i = 0; true; ++i)
     {
         size_t _len = len;
@@ -61,7 +117,7 @@ int ckbx_apply_all_lock_args_by_code_hash(
         {
             break;
         }
-        if (ret != CKB_SUCCESS || _len > MAX_CACHE_SIZE)
+        if (ret != CKB_SUCCESS || _len > len)
         {
             return ERROR_LOADING_REQUEST_CELL;
         }
@@ -75,19 +131,70 @@ int ckbx_apply_all_lock_args_by_code_hash(
             {
                 return ERROR_LUA_SCRIPT_ARGS;
             }
-            _len = MAX_JSON_SIZE;
-            ret = ckb_load_cell_data(json_data, &_len, 0, i, source);
-            if (ret != CKB_SUCCESS || _len > MAX_JSON_SIZE)
+            uint8_t *json_data = cache + _len;
+            size_t json_len = len - _len;
+            ret = ckb_load_cell_data(json_data, &json_len, 0, i, source);
+            if (ret != CKB_SUCCESS || json_len > len - _len)
             {
                 return ERROR_LOADING_REQUEST_CELL;
             }
-            mol_seg_t data = { json_data, _len };
-            ret = callback->call(callback->L, i, script_args_bytes_seg, data, callback->herr);
-            if (ret != CKB_SUCCESS)
-            {
-                return ret;
-            }
+            mol_seg_t data = { json_data, json_len };
+            CHECK_RET(callback->call(callback->L, i, script_args_bytes_seg, data, callback->herr));
         }
+    }
+    return CKB_SUCCESS;
+}
+
+int ckbx_apply_personal_output_by_code_hash(
+    uint8_t *cache, size_t len, size_t offset, uint8_t code_hash[HASH_SIZE], ApplyParams *callback
+) {
+    uint8_t lock_hash[HASH_SIZE];
+    mol_seg_t personal_owner = { lock_hash, HASH_SIZE };
+    for (size_t i = offset; true; ++i)
+    {
+        size_t _len = len;
+        int ret = ckb_load_cell_by_field(cache, &_len, 0, i, CKB_SOURCE_OUTPUT, CKB_CELL_FIELD_TYPE);
+        if (ret == CKB_INDEX_OUT_OF_BOUND)
+        {
+            break;
+        }
+        ckb_load_cell_by_field(
+            personal_owner.ptr, (uint64_t *)&personal_owner.size, 0, i, CKB_SOURCE_OUTPUT, CKB_CELL_FIELD_LOCK_HASH
+        );
+        // burned empty cell
+        if (ret == CKB_ITEM_MISSING)
+        {
+            mol_seg_t empty = { NULL, 0 };
+            CHECK_RET(callback->call(callback->L, i, personal_owner, empty, callback->herr));
+            break;
+        }
+        if (ret != CKB_SUCCESS || _len > MAX_CACHE_SIZE)
+        {
+            return ERROR_LOADING_PERSONAL_CELL;
+        }
+        mol_seg_t script_seg = { cache, _len };
+        mol_seg_t code_hash_seg = MolReader_Script_get_code_hash(&script_seg);
+        if (memcmp(code_hash, code_hash_seg.ptr, HASH_SIZE))
+        {
+            return ERROR_LOADING_PERSONAL_CELL;
+        }
+        // check validation of personal type_scirpt
+        mol_seg_t script_args_seg = MolReader_Script_get_args(&script_seg);
+        mol_seg_t script_args_bytes_seg = MolReader_Bytes_raw_bytes(&script_args_seg);
+        if (script_args_bytes_seg.size < 1 || script_args_bytes_seg.ptr[0] != FLAG_PERSONAL)
+        {
+            return ERROR_LUA_SCRIPT_ARGS;
+        }
+        mol_seg_t flag1_seg = { script_args_bytes_seg.ptr + 1, script_args_bytes_seg.size - 1 };
+        if (MolReader_Flag_1_verify(&flag1_seg, false) != MOL_OK)
+        {
+            return ERROR_FLAG_1_BYTES;
+        }
+        // non-burned cell
+        _len = len;
+        ckb_load_cell_data(cache, &_len, 0, i, CKB_SOURCE_OUTPUT);
+        mol_seg_t data = { cache, _len };
+        CHECK_RET(callback->call(callback->L, i, personal_owner, data, callback->herr));
     }
     return CKB_SUCCESS;
 }
@@ -132,7 +239,10 @@ int ckbx_check_request_exist(uint8_t *cache, size_t len, size_t source, size_t i
     {
         return ERROR_REQUEST_ARGS;
     }
-    *request_seg = script_args_bytes_seg;
+    if (request_seg)
+    {
+        *request_seg = script_args_bytes_seg;
+    }
     return CKB_SUCCESS;
 }
 
@@ -191,63 +301,6 @@ int ckbx_load_project_lua_code(
     }
     mol_seg_t lua_code_seg = MolReader_Deployment_get_code(&deployment_seg);
     *code_seg = MolReader_String_raw_bytes(&lua_code_seg);
-    return CKB_SUCCESS;
-}
-
-int ckbx_flag0_load_project_id(uint8_t *cache, size_t len, uint8_t project_id[HASH_SIZE])
-{
-    mol_seg_t flag0_seg = { cache, len };
-    if (MolReader_Flag_0_verify(&flag0_seg, false) != MOL_OK)
-    {
-        return ERROR_FLAG_0_BYTES;
-    }
-    mol_seg_t project_id_seg = MolReader_Flag_0_get_project_id(&flag0_seg);
-    memcpy(project_id, project_id_seg.ptr, project_id_seg.size);
-    return CKB_SUCCESS;
-}
-
-int ckbx_flag1_load_project_id(uint8_t *cache, size_t len, uint8_t project_id[HASH_SIZE])
-{
-    mol_seg_t flag1_seg = { cache, len };
-    if (MolReader_Flag_1_verify(&flag1_seg, false) != MOL_OK)
-    {
-        return ERROR_FLAG_1_BYTES;
-    }
-    mol_seg_t project_id_seg = MolReader_Flag_1_get_project_id(&flag1_seg);
-    memcpy(project_id, project_id_seg.ptr, project_id_seg.size);
-    return CKB_SUCCESS;
-}
-
-int ckbx_flag2_load_function_call(uint8_t *cache, size_t len, uint8_t *function_call, size_t size)
-{
-    mol_seg_t flag2_seg = { cache, len };
-    if (MolReader_Flag_2_verify(&flag2_seg, false) != MOL_OK)
-    {
-        return ERROR_FLAG_2_BYTES;
-    }
-    mol_seg_t function_call_seg = MolReader_Flag_2_get_function_call(&flag2_seg);
-    mol_seg_t function_call_bytes_seg = MolReader_String_raw_bytes(&function_call_seg);
-    if (function_call_bytes_seg.size > size)
-    {
-        return ERROR_FLAG_2_BYTES;
-    }
-    memcpy(function_call, function_call_bytes_seg.ptr, function_call_bytes_seg.size);
-    return CKB_SUCCESS;
-}
-
-int ckbx_flag2_load_caller_lockhash(uint8_t *cache, size_t len, uint8_t lock_hash[HASH_SIZE])
-{
-    mol_seg_t flag2_seg = { cache, len };
-    if (MolReader_Flag_2_verify(&flag2_seg, false) != MOL_OK)
-    {
-        return ERROR_FLAG_2_BYTES;
-    }
-    mol_seg_t caller_lockscript_seg = MolReader_Flag_2_get_caller_lockscript(&flag2_seg);
-    mol_seg_t caller_lockscript_bytes_seg = MolReader_String_raw_bytes(&caller_lockscript_seg);
-    blake2b(
-        lock_hash, HASH_SIZE, caller_lockscript_bytes_seg.ptr, caller_lockscript_bytes_seg.size,
-        NULL, 0
-    );
     return CKB_SUCCESS;
 }
 

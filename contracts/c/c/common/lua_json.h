@@ -2,8 +2,9 @@
 #define CKB_LUA_JSON
 
 #include "header.h"
-#include "inject.h"
 #include "jsmn.h"
+#include "lauxlib.h"
+#include "lualib.h"
 
 int _json_to_table_internal(lua_State *, char *, jsmntok_t *, int, int);
 
@@ -92,6 +93,18 @@ int _json_to_table_internal(lua_State *, char *, jsmntok_t *, int, int);
 //     return CKB_SUCCESS;
 // }
 
+bool _is_number(const char *str, size_t len)
+{
+    for (size_t i = 0; i < len; ++i)
+    {
+        if (strchr("0123456789.", str[i]) == NULL)
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
 int _json_to_table(lua_State *L, char *json, size_t len, int *out_count)
 {
     // make sure the end of bytes is ZERO
@@ -137,7 +150,18 @@ int _json_to_table_internal(lua_State *L, char *json, jsmntok_t *tokens, int sta
                 }
                 else
                 {
-                    lua_pushlstring(L, json + tokens[j].start, tokens[j].end - tokens[j].start);
+                    int size = tokens[j].end - tokens[j].start;
+                    if (tokens[j].type == JSMN_STRING)
+                    {
+                        lua_pushlstring(L, json + tokens[j].start, size);
+                    }
+                    else
+                    {
+                        char value[size + 1];
+                        memcpy(value, json + tokens[j].start, size);
+                        value[size] = '\0';
+                        lua_pushnumber(L, atof(value));
+                    }
                 }
                 char old_char = json[tokens[i].end];
                 json[tokens[i].end] = '\0';
@@ -162,7 +186,18 @@ int _json_to_table_internal(lua_State *L, char *json, jsmntok_t *tokens, int sta
                     }
                     else
                     {
-                        lua_pushlstring(L, json + tokens[j + k].start, tokens[j + k].end - tokens[j + k].start);
+                        int size = tokens[j + k].end - tokens[j + k].start;
+                        if (_is_number(json + tokens[j + k].start, size))
+                        {
+                            char value[size + 1];
+                            memcpy(value, json + tokens[j + k].start, size);
+                            value[size] = '\0';
+                            lua_pushnumber(L, atof(value));
+                        }
+                        else
+                        {
+                            lua_pushlstring(L, json + tokens[j + k].start, size);
+                        }
                     }
                     lua_rawseti(L, -2, k);
                 }

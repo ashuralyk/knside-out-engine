@@ -19,7 +19,7 @@ function construct ()
             version = 0,
             enable = true,
         },
-        request_array = { 1, 'abc', false }
+        request_array = { 2, 'abc', false }
     }
 end
 
@@ -28,36 +28,53 @@ end
 ]]
 function updateGlobal (key, value)
     assert(msg.sender == msg.owner, "sender must be owner")
+    assert(msg.global[key] ~= nil, "unsupported key " .. key)
     msg.global[key] = value
+    return {
+        owner = msg.sender,
+        data = {}
+    }
 end
 
 function mint ()
-    assert(msg.ckb_cost(500), "ckb not enough")
+    assert(msg.ckb_cost(500.55), "ckb not enough")
     local new_count = msg.global.minted_nft_count + 1
     if new_count <= msg.global.max_nft_count then
         msg.global.minted_nft_count = new_count
         msg.global.current_token_id = msg.global.current_token_id + 1
-        msg.mint({
-            token_id = msg.global.current_token_id,
-            glossaries = {}
-        })
+        return {
+            owner = msg.sender,
+            data = {
+                token_id = msg.global.current_token_id,
+                glossaries = {}
+            }
+        }
     end
 end
 
 function update (key, value)
     msg.global.updated_nft_count = msg.global.updated_nft_count + 1
     msg.data.glossaries[key] = value
-    msg.update(msg.data)
+    return {
+        owner = msg.sender,
+        data = msg.data
+    }
 end
 
 function transfer (to)
     msg.global.transfered_nft_count = msg.global.transfered_nft_count + 1
-    msg.transfer(to, msg.data)
+    return {
+        owner = to,
+        data = msg.data
+    }
 end
 
 function burn ()
     msg.global.burned_nft_count = msg.global.burned_nft_count + 1
-    msg.burn()
+    return {
+        owner = msg.sender,
+        data = {}
+    }
 end
 
 --[[

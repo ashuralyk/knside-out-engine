@@ -2,29 +2,135 @@
 #include "../common/lua_wrap.h"
 #include "../common/high_level.h"
 
-int _apply_lock_args(void *L, size_t i, mol_seg_t lock_args, mol_seg_t data, int herr)
+int _apply_request_args(void *L, size_t i, mol_seg_t lock_args, mol_seg_t data, int herr)
 {
-    ckb_debug("apply");
     if (lock_args.ptr[0] != FLAG_REQUEST)
     {
         return ERROR_REQUEST_FLAG;
     }
     int ret = CKB_SUCCESS;
-    uint8_t function_call[MAX_FUNCTION_CALL_SIZE] = { 0 };
+    uint8_t function_call[MAX_FUNCTION_CALL_SIZE] = PREFIX;
     CHECK_RET(ckbx_flag2_load_function_call(
-        lock_args.ptr + 1, lock_args.size - 1, function_call, MAX_FUNCTION_CALL_SIZE
+        lock_args.ptr + 1, lock_args.size - 1,
+        function_call + strlen(PREFIX), MAX_FUNCTION_CALL_SIZE - strlen(PREFIX)
     ));
+    ckb_debug((const char *)function_call);
     uint8_t lock_hash[HASH_SIZE];
     CHECK_RET(ckbx_flag2_load_caller_lockhash(lock_args.ptr + 1, lock_args.size - 1, lock_hash));
-    CHECK_RET(lua_inject_json_context((lua_State *)L, data.ptr, data.size, "data"));
-    CHECK_RET(lua_inject_auth_context((lua_State *)L, lock_hash, "sender"));
-    if (luaL_loadstring((lua_State *)L, (const char *)function_call) || lua_pcall((lua_State *)L, 0, 0, herr))
+    CHECK_RET(lua_inject_json_context(L, data.ptr, data.size, "data"));
+    CHECK_RET(lua_inject_auth_context(L, lock_hash, "sender"));
+    lua_getglobal(L, "_unchecked");
+    if (i != luaL_len(L, -1) + 1)
     {
-        char debug[512];
-        sprintf(debug, "invalid reqeust function call. (cell = %lu, payload = %s)", i, function_call);
-        ckb_debug(debug);
+        return ERROR_UNCONTINUOUS_REQUEST;
+    }
+    int top = lua_gettop(L);
+    if (luaL_loadstring(L, (const char *)function_call) || lua_pcall(L, 0, 1, herr))
+    {
+        DEBUG_PRINT("[ERROR] invalid reqeust function call. (cell = %lu, payload = %s)", i, function_call);
         return ERROR_APPLY_LUA_REQUEST;
     }
+    // the return must be a table value
+    if (lua_gettop(L) != top + 1 || !lua_istable(L, -1))
+    {
+        DEBUG_PRINT("[ERROR] invalid function return. (cell = %lu, payload = %s)", i, function_call);
+        return ERROR_APPLY_LUA_REQUEST;
+    }
+    lua_rawseti(L, -2, i);
+    return CKB_SUCCESS;
+}
+
+int _apply_personal_data(void *L, size_t i, mol_seg_t owner, mol_seg_t data, int herr)
+{
+    int ret = CKB_SUCCESS;
+    lua_getglobal(L, "_compare_unchecked");
+    lua_pushinteger(L, i);
+    // create data table for comparision
+    lua_newtable(L);
+    char hex[owner.size * 2];
+    _to_hex(hex, owner.ptr, owner.size);
+    lua_pushlstring(L, hex, owner.size * 2);
+    lua_setfield(L, -2, "owner");
+    if (data.ptr != NULL)
+    {
+        if (data.size > 0)
+        {
+            CHECK_RET(_json_to_table(L, (char *)data.ptr, data.size, NULL));
+        }
+        else
+        {
+            lua_newtable(L);
+        }
+        lua_setfield(L, -2, "data");
+    }
+    // compare with unchecked table
+    lua_pcall(L, 2, 1, herr);
+    if (!lua_toboolean(L, -1))
+    {
+        DEBUG_PRINT("[ERROR] mismatched input/output. (cell = %lu)", i);
+        return ERROR_CHECK_LUA_PERSONAL_DATA;
+    }
+    return CKB_SUCCESS;
+}
+
+int _ckb_cost(lua_State *L)
+{
+    uint64_t ckb = (size_t)(luaL_checknumber(L, -1) * CKB_ONE);
+    lua_getglobal(L, "_unchecked");
+    size_t i = luaL_len(L, -1) + 1;
+    uint64_t offerred_ckb;
+    uint64_t size = sizeof(offerred_ckb);
+    int ret = ckb_load_cell_by_field(&offerred_ckb, &size, 0, i, CKB_SOURCE_INPUT, CKB_CELL_FIELD_CAPACITY);
+    if (ret != CKB_SUCCESS)
+    {
+        lua_pushboolean(L, false);
+        return 1;
+    }
+    uint64_t occupied_ckb;
+    ret = ckb_load_cell_by_field(&occupied_ckb, &size, 0, i, CKB_SOURCE_INPUT, CKB_CELL_FIELD_OCCUPIED_CAPACITY);
+    if (ret != CKB_SUCCESS)
+    {
+        lua_pushboolean(L, false);
+        return 1;
+    }
+    // check CKB fee amount
+    if (occupied_ckb + ckb > offerred_ckb)
+    {
+        DEBUG_PRINT(
+            "[ERROR] need more %4.f ckb. (cell = %lu)", 
+            (occupied_ckb + ckb - offerred_ckb) / (double)CKB_ONE, i
+        );
+        lua_pushboolean(L, false);
+        return 1;
+    }
+    lua_pushboolean(L, true);
+    return 1;
+}
+
+int inject_personal_operation(lua_State *L, int herr)
+{
+    const char *checker_chunck = " \
+        _unchecked = {} \
+        function _compare_unchecked(i, tab) \
+            local unchecked = assert(_unchecked[i], 'output ' .. i .. ' has no corresponded input') \
+            return _compare_tables(unchecked, tab) \
+        end \
+    ";
+    if (luaL_loadstring(L, checker_chunck) || lua_pcall(L, 0, 0, herr))
+    {
+        ckb_debug("[ERROR] invalid personal checker chunck.");
+        return ERROR_LUA_INIT;
+    }
+    // add ckb_cost method
+    lua_getglobal(L, "msg");
+    if (!lua_istable(L, -1))
+    {
+        lua_newtable(L);
+    }
+    lua_pushcfunction(L, _ckb_cost);
+    lua_setfield(L, -2, "ckb_cost");
+    // reset `msg`
+    lua_setglobal(L, "msg");
     return CKB_SUCCESS;
 }
 
@@ -40,7 +146,7 @@ int verify_personal_data(uint8_t *cache, lua_State *L, int herr, mol_seg_t scrip
     // personal data update mode
     if (ret == CKB_SUCCESS)
     {
-        ckb_debug("update mode");
+        ckb_debug("personal/update mode");
         // update mode must have project deployment cell as celldeps
         size_t index;
         CHECK_RET(ckbx_check_project_exist(CKB_SOURCE_CELL_DEP, project_id, &index));
@@ -69,8 +175,8 @@ int verify_personal_data(uint8_t *cache, lua_State *L, int herr, mol_seg_t scrip
         );
         CHECK_RET(lua_inject_auth_context(L, owner_hash, "owner"));
         // apply each of requests
-        ApplyParams apply = { L, herr, _apply_lock_args };
-        CHECK_RET(ckbx_apply_all_lock_args_by_code_hash(
+        ApplyParams apply = { L, herr, _apply_request_args };
+        CHECK_RET(ckbx_apply_lock_args_by_code_hash(
             cache, MAX_CACHE_SIZE, CKB_SOURCE_INPUT, code_hash, &apply
         ));
         // first cell from tx-outputs must be Global Cell as well
@@ -82,11 +188,16 @@ int verify_personal_data(uint8_t *cache, lua_State *L, int herr, mol_seg_t scrip
         CHECK_RET(lua_check_global_data(
             L, "return msg.global", output_global_data.ptr, output_global_data.size, herr
         ));
+        // check other outputs personal data
+        apply.call = _apply_personal_data;
+        CHECK_RET(ckbx_apply_personal_output_by_code_hash(
+            cache, MAX_CACHE_SIZE, 1, code_hash, &apply
+        ));
     }
     // personal/global data request mode
     else if (ret == CKB_INDEX_OUT_OF_BOUND)
     {
-        ckb_debug("request mode");
+        ckb_debug("personal/request mode");
         mol_seg_t request_seg;
         CHECK_RET(ckbx_check_request_exist(cache, MAX_CACHE_SIZE, CKB_SOURCE_GROUP_OUTPUT, 0, &request_seg));
         uint8_t caller_hash[HASH_SIZE];
@@ -102,4 +213,5 @@ int verify_personal_data(uint8_t *cache, lua_State *L, int herr, mol_seg_t scrip
     {
         CHECK_RET(ret);
     }
+    return CKB_SUCCESS;
 }
