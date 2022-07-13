@@ -203,9 +203,10 @@ fn test_success_update_personal_data() {
     let type_id_script = context
         .build_script(&always_success_out_point, Bytes::from(vec![2]))
         .expect("type_id script");
-    let personal_lock_script = context
-        .build_script(&always_success_out_point, Bytes::from(vec![3]))
-        .expect("personal script");
+    let user1_lock_script = always_success_lock_script.clone();
+    let user2_lock_script = context
+        .build_script(&always_success_out_point, Bytes::from(vec![4]))
+        .expect("user2 script");
 
     // build project deployment and flag 0 and 2
     let luacode = std::fs::read_to_string("./lua/nft.lua").unwrap();
@@ -215,12 +216,12 @@ fn test_success_update_personal_data() {
     let flag_2_1 = protocol::mol_flag_2(
         &type_id_script.calc_script_hash().unpack(),
         "updateGlobal('max_nft_count', 10)",
-        always_success_lock_script.as_slice(),
+        user1_lock_script.as_slice(),
     );
     let flag_2_2 = protocol::mol_flag_2(
         &type_id_script.calc_script_hash().unpack(),
         "mint()",
-        personal_lock_script.as_slice(),
+        user2_lock_script.as_slice(),
     );
 
     // build inside-out type script and lock script
@@ -301,20 +302,20 @@ fn test_success_update_personal_data() {
         // next global data cell
         CellOutput::new_builder()
             .capacity(Capacity::bytes(1000).unwrap().pack())
-            .lock(always_success_lock_script.clone())
+            .lock(always_success_lock_script)
             .type_(Some(contract_script).pack())
             .build(),
         // unlocked normal cell for request 1
         CellOutput::new_builder()
             .capacity(Capacity::bytes(1000).unwrap().pack())
-            .lock(always_success_lock_script.clone())
+            .lock(user1_lock_script)
             .type_(Some(personal_script.clone()).pack())
             .build(),
         // unlocked normal cell for request 2
         CellOutput::new_builder()
             .capacity(Capacity::bytes(1000).unwrap().pack())
-            .lock(personal_lock_script.clone())
-            .type_(Some(personal_script.clone()).pack())
+            .lock(user2_lock_script)
+            .type_(Some(personal_script).pack())
             .build(),
     ];
 

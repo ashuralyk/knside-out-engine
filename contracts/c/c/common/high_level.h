@@ -286,6 +286,42 @@ int ckbx_check_global_exist(
     return CKB_SUCCESS;
 }
 
+int ckbx_check_reqeust_hash_exist(
+    uint8_t source, uint8_t expected_hash[HASH_SIZE], size_t indices[MAX_SAME_REQUEST_COUNT]
+) {
+    uint8_t lock_hash[HASH_SIZE];
+    uint64_t len = HASH_SIZE;
+    // valid offset of request lock_hash starts from 1, so fully ZERO means NOT-FOUND for indices
+    memset(indices, 0, sizeof(size_t) * MAX_SAME_REQUEST_COUNT);
+    size_t j = 0;
+    for (size_t i = 1; true; ++i)
+    {
+        int ret = ckb_load_cell_by_field(lock_hash, &len, 0, i, source, CKB_CELL_FIELD_LOCK_HASH);
+        if (ret == CKB_INDEX_OUT_OF_BOUND)
+        {
+            break;
+        }
+        if (ret != CKB_SUCCESS)
+        {
+            return ERROR_LOADING_SCRIPT;
+        }
+        if (memcmp(lock_hash, expected_hash, HASH_SIZE) == 0)
+        {
+            if (j >= MAX_SAME_REQUEST_COUNT)
+            {
+                return ERROR_REQUEST_EXCESSIVE;
+            }
+            indices[j++] = i;
+        }
+    }
+    size_t empty[MAX_SAME_REQUEST_COUNT] = { 0 };
+    if (memcmp(indices, empty, sizeof(empty)) == 0)
+    {
+        return ERROR_REQUEST_NOT_FOUND;
+    }
+    return CKB_SUCCESS;
+}
+
 int ckbx_load_project_lua_code(
     uint8_t *cache, size_t len, uint8_t source, size_t i, mol_seg_t *code_seg
 ) {

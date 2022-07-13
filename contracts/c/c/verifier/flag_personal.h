@@ -1,3 +1,6 @@
+#ifndef CKB_FLAG_PERSONAL
+#define CKB_FLAG_PERSONAL
+
 #include "../common/header.h"
 #include "../common/lua_wrap.h"
 #include "../common/high_level.h"
@@ -215,3 +218,5 @@ int verify_personal_data(uint8_t *cache, lua_State *L, int herr, mol_seg_t scrip
     }
     return CKB_SUCCESS;
 }
+
+#endif

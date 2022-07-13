@@ -1,5 +1,6 @@
 #include "verifier/flag_global.h"
 #include "verifier/flag_personal.h"
+#include "verifier/flag_request.h"
 
 int lua_init(lua_State *L, int herr)
 {
@@ -63,7 +64,8 @@ int lua_verify(lua_State *L, int herr)
         // represent request data
         case FLAG_REQUEST:
         {
-
+            CHECK_RET(verify_request_data(cache, L, herr, script_args, code_hash));
+            break;
         }
     }
 
