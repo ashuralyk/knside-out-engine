@@ -57,7 +57,7 @@ int lua_verify(lua_State *L, int herr)
         // represent personal data
         case FLAG_PERSONAL:
         {
-            CHECK_RET(inject_personal_operation(L, herr));
+            CHECK_RET(inject_personal_operation(L));
             CHECK_RET(verify_personal_data(cache, L, herr, script_args, code_hash));
             break;
         }

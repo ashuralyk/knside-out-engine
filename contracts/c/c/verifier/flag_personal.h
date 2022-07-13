@@ -12,17 +12,17 @@ int _apply_request_args(void *L, size_t i, mol_seg_t lock_args, mol_seg_t data, 
         return ERROR_REQUEST_FLAG;
     }
     int ret = CKB_SUCCESS;
-    uint8_t function_call[MAX_FUNCTION_CALL_SIZE] = PREFIX;
+    uint8_t function_call[MAX_FUNCTION_CALL_SIZE] = LUA_PREFIX;
     CHECK_RET(ckbx_flag2_load_function_call(
         lock_args.ptr + 1, lock_args.size - 1,
-        function_call + strlen(PREFIX), MAX_FUNCTION_CALL_SIZE - strlen(PREFIX)
+        function_call + strlen(LUA_PREFIX), MAX_FUNCTION_CALL_SIZE - strlen(LUA_PREFIX)
     ));
     ckb_debug((const char *)function_call);
     uint8_t lock_hash[HASH_SIZE];
     CHECK_RET(ckbx_flag2_load_caller_lockhash(lock_args.ptr + 1, lock_args.size - 1, lock_hash));
     CHECK_RET(lua_inject_json_context(L, data.ptr, data.size, "data"));
     CHECK_RET(lua_inject_auth_context(L, lock_hash, "sender"));
-    lua_getglobal(L, "_unchecked");
+    lua_getglobal(L, LUA_UNCHECKED);
     if (i != luaL_len(L, -1) + 1)
     {
         return ERROR_UNCONTINUOUS_REQUEST;
@@ -45,33 +45,13 @@ int _apply_request_args(void *L, size_t i, mol_seg_t lock_args, mol_seg_t data, 
 
 int _apply_personal_data(void *L, size_t i, mol_seg_t owner, mol_seg_t data, int herr)
 {
-    int ret = CKB_SUCCESS;
-    lua_getglobal(L, "_compare_unchecked");
-    lua_pushinteger(L, i);
-    // create data table for comparision
-    lua_newtable(L);
-    char hex[owner.size * 2];
-    _to_hex(hex, owner.ptr, owner.size);
-    lua_pushlstring(L, hex, owner.size * 2);
-    lua_setfield(L, -2, "owner");
-    if (data.ptr != NULL)
-    {
-        if (data.size > 0)
-        {
-            CHECK_RET(_json_to_table(L, (char *)data.ptr, data.size, NULL));
-        }
-        else
-        {
-            lua_newtable(L);
-        }
-        lua_setfield(L, -2, "data");
-    }
-    // compare with unchecked table
-    lua_pcall(L, 2, 1, herr);
-    if (!lua_toboolean(L, -1))
+    char method[MAX_FUNCTION_CALL_SIZE];
+    sprintf(method, "return %s[%lu]", LUA_UNCHECKED, i);
+    int ret = lua_check_personal_data(L, method, owner.ptr, owner.size, data.ptr, data.size, herr);
+    if (ret != CKB_SUCCESS)
     {
         DEBUG_PRINT("[ERROR] mismatched input/output. (cell = %lu)", i);
-        return ERROR_CHECK_LUA_PERSONAL_DATA;
+        return ret;
     }
     return CKB_SUCCESS;
 }
@@ -79,7 +59,7 @@ int _apply_personal_data(void *L, size_t i, mol_seg_t owner, mol_seg_t data, int
 int _ckb_cost(lua_State *L)
 {
     uint64_t ckb = (size_t)(luaL_checknumber(L, -1) * CKB_ONE);
-    lua_getglobal(L, "_unchecked");
+    lua_getglobal(L, LUA_UNCHECKED);
     size_t i = luaL_len(L, -1) + 1;
     uint64_t offerred_ckb;
     uint64_t size = sizeof(offerred_ckb);
@@ -110,30 +90,16 @@ int _ckb_cost(lua_State *L)
     return 1;
 }
 
-int inject_personal_operation(lua_State *L, int herr)
+int inject_personal_operation(lua_State *L)
 {
-    const char *checker_chunck = " \
-        _unchecked = {} \
-        function _compare_unchecked(i, tab) \
-            local unchecked = assert(_unchecked[i], 'output ' .. i .. ' has no corresponded input') \
-            return _compare_tables(unchecked, tab) \
-        end \
-    ";
-    if (luaL_loadstring(L, checker_chunck) || lua_pcall(L, 0, 0, herr))
-    {
-        ckb_debug("[ERROR] invalid personal checker chunck.");
-        return ERROR_LUA_INIT;
-    }
+    lua_newtable(L);
+    lua_setglobal(L, LUA_UNCHECKED);
     // add ckb_cost method
-    lua_getglobal(L, "msg");
-    if (!lua_istable(L, -1))
-    {
-        lua_newtable(L);
-    }
-    lua_pushcfunction(L, _ckb_cost);
-    lua_setfield(L, -2, "ckb_cost");
-    // reset `msg`
-    lua_setglobal(L, "msg");
+    int ret = CKB_SUCCESS;
+    LuaOperation operations[] = {
+        { "ckb_cost", _ckb_cost }
+    };
+    CHECK_RET(lua_inject_operation_context(L, operations, 1));
     return CKB_SUCCESS;
 }
 

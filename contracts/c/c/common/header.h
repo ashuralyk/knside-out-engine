@@ -26,8 +26,10 @@
 #define MAX_SAME_REQUEST_COUNT 32
 #define HASH_SIZE 32
 #define HASH_HEX_SIZE (HASH_SIZE * 2)
-#define PREFIX "return "
 #define CKB_ONE 100000000
+
+#define LUA_PREFIX "return "
+#define LUA_UNCHECKED "__unchecked"
 
 enum FALG
 {

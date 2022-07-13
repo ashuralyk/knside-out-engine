@@ -3,13 +3,13 @@
 
 #include "lua_json.h"
 
-// typedef int (*LuaFunc)(lua_State *);
+typedef int (*LuaFunc)(lua_State *);
 
-// typedef struct
-// {
-//     const char *name;
-//     LuaFunc callback;
-// } LuaOperation;
+typedef struct
+{
+    const char *name;
+    LuaFunc callback;
+} LuaOperation;
 
 void _to_hex(char *hex, uint8_t *bytes, int size)
 {
@@ -168,24 +168,24 @@ int lua_inject_auth_context(lua_State *L, uint8_t auth_hash[HASH_SIZE], const ch
     return CKB_SUCCESS;
 }
 
-// int lua_inject_operation_context(lua_State *L, LuaOperation *operations, size_t len)
-// {
-//     // check `msg` or make new one
-//     lua_getglobal(L, "msg");
-//     if (!lua_istable(L, -1))
-//     {
-//         lua_newtable(L);
-//     }
-//     // push functions
-//     for (size_t i = 0; i < len; ++i)
-//     {
-//         lua_pushcfunction(L, operations[i].callback);
-//         lua_setfield(L, -2, operations[i].name);
-//     }
-//     // reset `msg`
-//     lua_setglobal(L, "msg");
-//     return CKB_SUCCESS;
-// }
+int lua_inject_operation_context(lua_State *L, LuaOperation *operations, size_t len)
+{
+    // check `msg` or make new one
+    lua_getglobal(L, "msg");
+    if (!lua_istable(L, -1))
+    {
+        lua_newtable(L);
+    }
+    // push functions
+    for (size_t i = 0; i < len; ++i)
+    {
+        lua_pushcfunction(L, operations[i].callback);
+        lua_setfield(L, -2, operations[i].name);
+    }
+    // reset `msg`
+    lua_setglobal(L, "msg");
+    return CKB_SUCCESS;
+}
 
 int lua_check_global_data(lua_State *L, const char *method, uint8_t *expected_json, size_t len, int herr)
 {
@@ -194,7 +194,7 @@ int lua_check_global_data(lua_State *L, const char *method, uint8_t *expected_js
     // load first table parameter
     if (luaL_loadstring(L, method) || lua_pcall(L, 0, 1, herr))
     {
-        ckb_debug("invalid update method.");
+        ckb_debug("[ERROR] invalid global checker method.");
         return ERROR_CHECK_LUA_GLOBAL_DATA;
     }
     // global data must be table
@@ -210,6 +210,50 @@ int lua_check_global_data(lua_State *L, const char *method, uint8_t *expected_js
     if (!lua_toboolean(L, -1))
     {
         return ERROR_CHECK_LUA_GLOBAL_DATA;
+    }
+    return CKB_SUCCESS;
+}
+
+int lua_check_personal_data(
+    lua_State *L, const char *method, uint8_t *owner, size_t owner_len, uint8_t *data, size_t data_len, int herr
+) {
+    // load compare function
+    lua_getglobal(L, "_compare_tables");
+    // load first table parameter
+    if (luaL_loadstring(L, method) || lua_pcall(L, 0, 1, herr))
+    {
+        ckb_debug("[ERROR] invalid personal checker method.");
+        return ERROR_CHECK_LUA_PERSONAL_DATA;
+    }
+    // personal data must be table
+    if (!lua_istable(L, -1))
+    {
+        return ERROR_CHECK_LUA_PERSONAL_DATA;
+    }
+    int ret = CKB_SUCCESS;
+    // create data table for comparision
+    lua_newtable(L);
+    char hex[owner_len * 2];
+    _to_hex(hex, owner, owner_len);
+    lua_pushlstring(L, hex, owner_len * 2);
+    lua_setfield(L, -2, "owner");
+    if (data != NULL)
+    {
+        if (data_len > 0)
+        {
+            CHECK_RET(_json_to_table(L, (char *)data, data_len, NULL));
+        }
+        else
+        {
+            lua_newtable(L);
+        }
+        lua_setfield(L, -2, "data");
+    }
+    // compare with unchecked table
+    lua_pcall(L, 2, 1, herr);
+    if (!lua_toboolean(L, -1))
+    {
+        return ERROR_CHECK_LUA_PERSONAL_DATA;
     }
     return CKB_SUCCESS;
 }
