@@ -9,10 +9,10 @@ int contract_error_handler(lua_State *L)
 
 int main()
 {
-    // Init lua status (or context)
+    // init lua status (or context)
     lua_State *L = luaL_newstate(0, 0);
 
-    // Load error handler for contract error print
+    // load error handler for contract error print
     lua_pushcfunction(L, contract_error_handler);
     int herr = lua_gettop(L);
 

@@ -340,4 +340,23 @@ int ckbx_load_project_lua_code(
     return CKB_SUCCESS;
 }
 
+int ckbx_get_random_seeds(uint8_t *cache, size_t len, uint8_t seeds[HALF_HASH_SIZE])
+{
+    blake2b_state hasher;
+    blake2b_init(&hasher, HALF_HASH_SIZE);
+    int n = ckb_calculate_inputs_len();
+    for (int i = 0; i < n; ++i)
+    {
+        size_t _len = len;
+        int ret = ckb_load_input(cache, &_len, 0, i, CKB_SOURCE_INPUT);
+        if (ret != CKB_SUCCESS)
+        {
+            return ERROR_CALCULATE_RANDOM;
+        }
+        blake2b_update(&hasher, cache, _len);
+    }
+    blake2b_final(&hasher, seeds, HALF_HASH_SIZE);
+    return CKB_SUCCESS;
+}
+
 #endif

@@ -90,12 +90,17 @@ int _ckb_cost(lua_State *L)
     return 1;
 }
 
-int inject_personal_operation(lua_State *L)
+int inject_personal_operation(uint8_t *cache, lua_State *L, int herr)
 {
+    int ret = CKB_SUCCESS;
+    // inject unchecked global table
     lua_newtable(L);
     lua_setglobal(L, LUA_UNCHECKED);
+    // set random seed by transaction inputs
+    uint64_t seed[2];
+    CHECK_RET(ckbx_get_random_seeds(cache, MAX_CACHE_SIZE, (uint8_t *)seed));
+    CHECK_RET(lua_inject_random_seeds(L, seed, herr));
     // add ckb_cost method
-    int ret = CKB_SUCCESS;
     LuaOperation operations[] = {
         { "ckb_cost", _ckb_cost }
     };

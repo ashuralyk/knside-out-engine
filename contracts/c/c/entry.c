@@ -29,7 +29,7 @@ int lua_init(lua_State *L, int herr)
     if (luaL_loadstring(L, table_checker_chunck) || lua_pcall(L, 0, 0, herr))
     {
         ckb_debug("[ERROR] invalid table checker chunck.");
-        return ERROR_LUA_INIT;
+        return ERROR_LUA_INJECT;
     }
 
     return CKB_SUCCESS;
@@ -57,7 +57,7 @@ int lua_verify(lua_State *L, int herr)
         // represent personal data
         case FLAG_PERSONAL:
         {
-            CHECK_RET(inject_personal_operation(L));
+            CHECK_RET(inject_personal_operation(cache, L, herr));
             CHECK_RET(verify_personal_data(cache, L, herr, script_args, code_hash));
             break;
         }

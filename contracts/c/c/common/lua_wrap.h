@@ -187,6 +187,21 @@ int lua_inject_operation_context(lua_State *L, LuaOperation *operations, size_t 
     return CKB_SUCCESS;
 }
 
+int lua_inject_random_seeds(lua_State *L, uint64_t seed[2], int herr)
+{
+    lua_getglobal(L, "math");
+    lua_pushstring(L, "randomseed");
+    lua_gettable(L, -2);
+    lua_pushinteger(L, seed[0]);
+    lua_pushinteger(L, seed[1]);
+    if (lua_pcall(L, 2, 0, herr))
+    {
+        ckb_debug("[ERROR] invalid math.randomseed params.");
+        return ERROR_LUA_INJECT;
+    }
+    return CKB_SUCCESS;
+}
+
 int lua_check_global_data(lua_State *L, const char *method, uint8_t *expected_json, size_t len, int herr)
 {
     // load compare function
