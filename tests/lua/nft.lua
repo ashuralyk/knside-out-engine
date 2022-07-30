@@ -19,7 +19,7 @@ function construct ()
             version = 0,
             enable = true,
         },
-        request_array = { 2, 'abc', false }
+        request_array = { 2, 'abc', false, {1, 2, 3, {x = "liyukun"}}, {abc = 1, cba = 2} }
     }
 end
 
