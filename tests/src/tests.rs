@@ -123,7 +123,6 @@ fn test_success_personal_request() {
     // build project deployment and flag 0 and 2
     let flag_1 = protocol::mol_flag_1(&type_id_script.calc_script_hash().unpack());
     let flag_2 = protocol::mol_flag_2(
-        &type_id_script.calc_script_hash().unpack(),
         "mint()",
         always_success_lock_script.as_slice(),
         None
@@ -215,13 +214,11 @@ fn test_success_update_personal_data() {
     let flag_0 = protocol::mol_flag_0(&type_id_script.calc_script_hash().unpack());
     let flag_1 = protocol::mol_flag_1(&type_id_script.calc_script_hash().unpack());
     let flag_2_1 = protocol::mol_flag_2(
-        &type_id_script.calc_script_hash().unpack(),
         "updateGlobal('max_nft_count', 10)",
         user1_lock_script.as_slice(),
         None
     );
     let flag_2_2 = protocol::mol_flag_2(
-        &type_id_script.calc_script_hash().unpack(),
         "mint()",
         user2_lock_script.as_slice(),
         None
@@ -312,7 +309,7 @@ fn test_success_update_personal_data() {
         CellOutput::new_builder()
             .capacity(Capacity::bytes(1000).unwrap().pack())
             .lock(user1_lock_script)
-            .type_(Some(personal_script.clone()).pack())
+            // .type_(Some(personal_script.clone()).pack())
             .build(),
         // unlocked normal cell for request 2
         CellOutput::new_builder()

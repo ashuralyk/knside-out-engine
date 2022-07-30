@@ -73,9 +73,8 @@ pub fn mol_flag_1(hash: &[u8; 32]) -> Vec<u8> {
     flag_1_bytes
 }
 
-pub fn mol_flag_2(hash: &[u8; 32], method: &str, lockscript: &[u8], recipient: Option<&[u8]>) -> Vec<u8> {
+pub fn mol_flag_2(method: &str, lockscript: &[u8], recipient: Option<&[u8]>) -> Vec<u8> {
     let mut flag_2_bytes = protocol::Flag2::new_builder()
-        .project_id(mol_hash(hash))
         .function_call(mol_string(method.as_bytes()))
         .caller_lockscript(mol_string(lockscript))
         .recipient_lockscript(mol_string_opt(recipient))

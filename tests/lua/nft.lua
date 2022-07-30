@@ -32,7 +32,7 @@ function updateGlobal (key, value)
     msg.global[key] = value
     return {
         owner = msg.sender,
-        data = {}
+        data = nil
     }
 end
 
