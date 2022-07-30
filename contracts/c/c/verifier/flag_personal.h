@@ -18,10 +18,12 @@ int _apply_request_args(void *L, size_t i, mol_seg_t lock_args, mol_seg_t data, 
         function_call + strlen(LUA_PREFIX), MAX_FUNCTION_CALL_SIZE - strlen(LUA_PREFIX)
     ));
     ckb_debug((const char *)function_call);
+    CHECK_RET(lua_inject_json_context(L, data.ptr, data.size, "data"));
     uint8_t lock_hash[HASH_SIZE];
     CHECK_RET(ckbx_flag2_load_caller_lockhash(lock_args.ptr + 1, lock_args.size - 1, lock_hash));
-    CHECK_RET(lua_inject_json_context(L, data.ptr, data.size, "data"));
     CHECK_RET(lua_inject_auth_context(L, lock_hash, "sender"));
+    CHECK_RET(ckbx_flag2_load_recipient_lockhash(lock_args.ptr + 1, lock_args.size - 1, lock_hash));
+    CHECK_RET(lua_inject_auth_context(L, lock_hash, "recipient"));
     lua_getglobal(L, LUA_UNCHECKED);
     if (i != luaL_len(L, -1) + 1)
     {

@@ -1,5 +1,6 @@
 array Hash [byte; 32];
 vector String <byte>;
+option StringOpt (String);
 
 table ProjectInfo {
     name: String,
@@ -28,4 +29,5 @@ table Flag_1 {
 table Flag_2 {
     function_call: String,
     caller_lockscript: String,
+    recipient_lockscript: StringOpt,
 }

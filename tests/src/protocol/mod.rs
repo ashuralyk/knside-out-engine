@@ -22,6 +22,15 @@ fn mol_string(v: &[u8]) -> protocol::String {
     protocol::String::new_builder().set(bytes).build()
 }
 
+fn mol_string_opt(v: Option<&[u8]>) -> protocol::StringOpt {
+    if let Some(v) = v {
+        let string = mol_string(v);
+        protocol::StringOpt::new_builder().set(Some(string)).build()
+    } else {
+        protocol::StringOpt::new_builder().set(None).build()
+    }
+}
+
 fn mol_project_info(
     name: &str,
     author: &str,
@@ -64,11 +73,12 @@ pub fn mol_flag_1(hash: &[u8; 32]) -> Vec<u8> {
     flag_1_bytes
 }
 
-pub fn mol_flag_2(hash: &[u8; 32], method: &str, lockscript: &[u8]) -> Vec<u8> {
+pub fn mol_flag_2(hash: &[u8; 32], method: &str, lockscript: &[u8], recipient: Option<&[u8]>) -> Vec<u8> {
     let mut flag_2_bytes = protocol::Flag2::new_builder()
         .project_id(mol_hash(hash))
         .function_call(mol_string(method.as_bytes()))
         .caller_lockscript(mol_string(lockscript))
+        .recipient_lockscript(mol_string_opt(recipient))
         .build()
         .as_bytes()
         .to_vec();

@@ -86,6 +86,25 @@ int ckbx_flag2_load_caller_lockhash(uint8_t *cache, size_t len, uint8_t lock_has
     return CKB_SUCCESS;
 }
 
+int ckbx_flag2_load_recipient_lockhash(uint8_t *cache, size_t len, uint8_t lock_hash[HASH_SIZE])
+{
+    mol_seg_t flag2_seg = { cache, len };
+    if (MolReader_Flag_2_verify(&flag2_seg, false) != MOL_OK)
+    {
+        return ERROR_FLAG_2_BYTES;
+    }
+    mol_seg_t owner_lockscript_seg = MolReader_Flag_2_get_recipient_lockscript(&flag2_seg);
+    if (!MolReader_StringOpt_is_none(&owner_lockscript_seg))
+    {
+        mol_seg_t owner_lockscript_bytes_seg = MolReader_String_raw_bytes(&owner_lockscript_seg);
+        blake2b(
+            lock_hash, HASH_SIZE, owner_lockscript_bytes_seg.ptr, owner_lockscript_bytes_seg.size,
+            NULL, 0
+        );
+    }
+    return CKB_SUCCESS;
+}
+
 int ckbx_load_script(uint8_t *cache, size_t len, mol_seg_t *args_seg, uint8_t code_hash[HASH_SIZE])
 {
     int ret = ckb_load_script(cache, &len, 0);

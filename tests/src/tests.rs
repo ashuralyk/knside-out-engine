@@ -126,6 +126,7 @@ fn test_success_personal_request() {
         &type_id_script.calc_script_hash().unpack(),
         "mint()",
         always_success_lock_script.as_slice(),
+        None
     );
 
     // build inside-out type script and lock script
@@ -217,11 +218,13 @@ fn test_success_update_personal_data() {
         &type_id_script.calc_script_hash().unpack(),
         "updateGlobal('max_nft_count', 10)",
         user1_lock_script.as_slice(),
+        None
     );
     let flag_2_2 = protocol::mol_flag_2(
         &type_id_script.calc_script_hash().unpack(),
         "mint()",
         user2_lock_script.as_slice(),
+        None
     );
 
     // build inside-out type script and lock script
