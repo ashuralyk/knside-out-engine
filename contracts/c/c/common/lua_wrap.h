@@ -59,24 +59,25 @@ void _strcat_table_key_value(lua_State *L, char *buffer, int size, int index, in
     }
 }
 
-void _print_table(lua_State *L, int tbl_index, char *prefix)
+void _print_table(lua_State *L, int tbl_index, char *prefix, int prefix_len)
 {
     lua_pushnil(L);
     while (lua_next(L, tbl_index))
     {
         char buffer[512] = "";
+        prefix[prefix_len] = '\0';
         lua_pushvalue(L, -2);
         strncat(buffer, prefix, sizeof(buffer) - 1);
-        _strcat_table_key_value(L, buffer, sizeof(buffer) - 1, -1, 1);
+        _strcat_table_key_value(L, buffer, sizeof(buffer) - 1, -1, true);
         if (lua_istable(L, -2))
         {
             strcat(prefix, "  ");
             ckb_debug(buffer);
-            _print_table(L, lua_gettop(L) - 1, prefix);
+            _print_table(L, lua_gettop(L) - 1, prefix, strlen(prefix));
         }
         else
         {
-            _strcat_table_key_value(L, buffer, sizeof(buffer) - 1, -2, 0);
+            _strcat_table_key_value(L, buffer, sizeof(buffer) - 1, -2, false);
             ckb_debug(buffer);
         }
         lua_pop(L, 2);
@@ -95,7 +96,7 @@ int lua_println(lua_State *L)
         {
             char prefix[256] = "";
             ckb_debug("--------------TABLE PRINT START--------------");
-            _print_table(L, i, prefix);
+            _print_table(L, i, prefix, 0);
             ckb_debug("--------------TABLE PRINT CLOSE--------------");
         }
         else if (lua_isinteger(L, i))

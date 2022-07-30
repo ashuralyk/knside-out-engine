@@ -212,6 +212,10 @@ int ckbx_check_project_exist(size_t source, uint8_t expected_hash[HASH_SIZE], si
             *which = -1;
             break;
         }
+        else if (ret == CKB_ITEM_MISSING)
+        {
+            continue;
+        }
         else if (ret != CKB_SUCCESS || len != HASH_SIZE)
         {
             return ERROR_NO_DEPLOYMENT_CELL;
