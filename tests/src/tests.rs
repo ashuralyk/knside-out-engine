@@ -133,18 +133,32 @@ fn test_success_personal_request() {
         .expect("personal script");
     let contract_dep = CellDep::new_builder().out_point(out_point).build();
 
-    // build projectt input
-    let input = CellInput::new_builder()
-        .previous_output(
-            context.create_cell(
-                CellOutput::new_builder()
-                    .capacity(1000.pack())
-                    .lock(always_success_lock_script.clone())
-                    .build(),
-                Bytes::new(),
-            ),
-        )
-        .build();
+    // build project input
+    let inputs = vec![
+        CellInput::new_builder()
+            .previous_output(
+                context.create_cell(
+                    CellOutput::new_builder()
+                        .capacity(1000.pack())
+                        .lock(always_success_lock_script.clone())
+                        // .type_(Some(contract_script.clone()).pack())
+                        .build(),
+                    Bytes::from_static(b"{}"),
+                ),
+            )
+            .build(),
+        CellInput::new_builder()
+            .previous_output(
+                context.create_cell(
+                    CellOutput::new_builder()
+                        .capacity(1000.pack())
+                        .lock(always_success_lock_script.clone())
+                        .build(),
+                    Bytes::new(),
+                ),
+            )
+            .build(),
+    ];
 
     // build project outputs
     let outputs = vec![
@@ -166,7 +180,7 @@ fn test_success_personal_request() {
 
     // build tx
     let tx = TransactionBuilder::default()
-        .input(input)
+        .inputs(inputs)
         .outputs(outputs)
         .outputs_data(outputs_data)
         .cell_dep(always_success_script_dep)

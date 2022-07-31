@@ -113,14 +113,15 @@ int inject_personal_operation(uint8_t *cache, lua_State *L, int herr)
 int verify_personal_data(uint8_t *cache, lua_State *L, int herr, mol_seg_t script_args, uint8_t code_hash[HASH_SIZE])
 {
     int ret = CKB_SUCCESS;
+    uint64_t len = MAX_CACHE_SIZE;
     // check flag1
     uint8_t project_id[HASH_SIZE];
     CHECK_RET(ckbx_flag1_load_project_id(script_args.ptr + 1, script_args.size - 1, project_id));
     // check wether inputs contain same script
-    uint64_t len = MAX_CACHE_SIZE;
-    ret = ckb_load_cell_by_field(cache, &len, 0, 0, CKB_SOURCE_GROUP_INPUT, CKB_CELL_FIELD_CAPACITY);
+    bool is_update_mode;
+    CHECK_RET(ckbx_check_personal_update_mode(cache, len, code_hash, &is_update_mode));
     // personal data update mode
-    if (ret == CKB_SUCCESS)
+    if (is_update_mode)
     {
         ckb_debug("personal/update mode");
         // update mode must have project deployment cell as celldeps
@@ -171,7 +172,7 @@ int verify_personal_data(uint8_t *cache, lua_State *L, int herr, mol_seg_t scrip
         ));
     }
     // personal/global data request mode
-    else if (ret == CKB_INDEX_OUT_OF_BOUND)
+    else
     {
         ckb_debug("personal/request mode");
         mol_seg_t request_seg;
@@ -184,10 +185,6 @@ int verify_personal_data(uint8_t *cache, lua_State *L, int herr, mol_seg_t scrip
         {
             return ERROR_REQUEST_CALLER_HASH;
         }
-    }
-    else
-    {
-        CHECK_RET(ret);
     }
     return CKB_SUCCESS;
 }

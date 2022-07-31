@@ -351,6 +351,48 @@ int ckbx_check_reqeust_hash_exist(
     return CKB_SUCCESS;
 }
 
+int ckbx_check_global_update_mode(uint8_t *cache, size_t len, bool *is_update)
+{
+    int ret = ckb_load_cell_data(cache, &len, 0, 0, CKB_SOURCE_GROUP_INPUT);
+    if ((ret != CKB_SUCCESS && ret != CKB_INDEX_OUT_OF_BOUND) || len > MAX_CACHE_SIZE)
+    {
+        return ERROR_CHECK_GLOBAL_MODE;
+    }
+    *is_update = (ret == CKB_SUCCESS);
+    return CKB_SUCCESS;
+}
+
+int ckbx_check_personal_update_mode(
+    uint8_t *cache, size_t len, uint8_t code_hash[HASH_SIZE], bool *is_update
+) {
+    size_t _len = len;
+    int ret = ckb_load_cell_by_field(cache, &_len, 0, 0, CKB_SOURCE_GROUP_INPUT, CKB_CELL_FIELD_CAPACITY);
+    if (ret == CKB_INDEX_OUT_OF_BOUND)
+    {
+        *is_update = false;
+        return CKB_SUCCESS;
+    }
+    else if (ret != CKB_SUCCESS)
+    {
+        return ERROR_CHECK_PERSONAL_MODE;
+    }
+    _len = len;
+    ret = ckb_load_cell_by_field(cache, &_len, 0, 1, CKB_SOURCE_INPUT, CKB_CELL_FIELD_LOCK);
+    if (ret == CKB_INDEX_OUT_OF_BOUND)
+    {
+        *is_update = false;
+        return CKB_SUCCESS;
+    }
+    else if (ret != CKB_SUCCESS)
+    {
+        return ERROR_CHECK_PERSONAL_MODE;
+    }
+    mol_seg_t script_seg = { cache, len };
+    mol_seg_t code_hash_seg = MolReader_Script_get_code_hash(&script_seg);
+    *is_update = (memcmp(code_hash, code_hash_seg.ptr, HASH_SIZE) == 0);
+    return CKB_SUCCESS;
+}
+
 int ckbx_load_project_lua_code(
     uint8_t *cache, size_t len, uint8_t source, size_t i, mol_seg_t *code_seg
 ) {
