@@ -129,6 +129,10 @@ int lua_load_project_code(lua_State *L, uint8_t *code, size_t len, int herr)
 
 int lua_inject_json_context(lua_State *L, uint8_t *json_data, size_t len, const char *name)
 {
+    if (len == 0 || json_data == NULL)
+    {
+        return CKB_SUCCESS;
+    }
     // check `msg` or make new one
     lua_getglobal(L, "msg");
     if (!lua_istable(L, -1))
@@ -137,14 +141,7 @@ int lua_inject_json_context(lua_State *L, uint8_t *json_data, size_t len, const 
     }
     // create Global table
     int ret = CKB_SUCCESS;
-    if (len > 0)
-    {
-        CHECK_RET(_json_to_table(L, (char *)json_data, len, NULL));
-    }
-    else
-    {
-        lua_newtable(L);
-    }
+    CHECK_RET(_json_to_table(L, (char *)json_data, len, NULL));
     lua_setfield(L, -2, name);
     // setup `msg`
     lua_setglobal(L, "msg");

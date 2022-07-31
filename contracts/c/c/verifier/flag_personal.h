@@ -12,24 +12,24 @@ int _apply_request_args(void *L, size_t i, mol_seg_t lock_args, mol_seg_t data, 
         return ERROR_REQUEST_FLAG;
     }
     int ret = CKB_SUCCESS;
-    uint8_t function_call[MAX_FUNCTION_CALL_SIZE] = LUA_PREFIX;
-    CHECK_RET(ckbx_flag2_load_function_call(
-        lock_args.ptr + 1, lock_args.size - 1,
-        function_call + strlen(LUA_PREFIX), MAX_FUNCTION_CALL_SIZE - strlen(LUA_PREFIX)
-    ));
-    ckb_debug((const char *)function_call);
-    CHECK_RET(lua_inject_json_context(L, data.ptr, data.size, "data"));
     uint8_t lock_hash[HASH_SIZE];
     CHECK_RET(ckbx_flag2_load_caller_lockhash(lock_args.ptr + 1, lock_args.size - 1, lock_hash));
     CHECK_RET(lua_inject_auth_context(L, lock_hash, "sender"));
     CHECK_RET(ckbx_flag2_load_recipient_lockhash(lock_args.ptr + 1, lock_args.size - 1, lock_hash));
     CHECK_RET(lua_inject_auth_context(L, lock_hash, "recipient"));
+    CHECK_RET(lua_inject_json_context(L, data.ptr, data.size, "data"));
     lua_getglobal(L, LUA_UNCHECKED);
     if (i != luaL_len(L, -1) + 1)
     {
         return ERROR_UNCONTINUOUS_REQUEST;
     }
     int top = lua_gettop(L);
+    uint8_t function_call[MAX_FUNCTION_CALL_SIZE] = LUA_PREFIX;
+    CHECK_RET(ckbx_flag2_load_function_call(
+        lock_args.ptr + 1, lock_args.size - 1,
+        function_call + strlen(LUA_PREFIX), MAX_FUNCTION_CALL_SIZE - strlen(LUA_PREFIX)
+    ));
+    ckb_debug((const char *)function_call);
     if (luaL_loadstring(L, (const char *)function_call) || lua_pcall(L, 0, 1, herr))
     {
         DEBUG_PRINT("[ERROR] invalid reqeust function call. (cell = %lu, payload = %s)", i, function_call);

@@ -122,11 +122,7 @@ fn test_success_personal_request() {
 
     // build project deployment and flag 0 and 2
     let flag_1 = protocol::mol_flag_1(&type_id_script.calc_script_hash().unpack());
-    let flag_2 = protocol::mol_flag_2(
-        "mint()",
-        always_success_lock_script.as_slice(),
-        None
-    );
+    let flag_2 = protocol::mol_flag_2("mint()", always_success_lock_script.as_slice(), None);
 
     // build inside-out type script and lock script
     let request_script = context
@@ -166,10 +162,7 @@ fn test_success_personal_request() {
     ];
 
     // build project outputs data
-    let outputs_data = vec![
-        Bytes::new().pack(),
-        Bytes::new().pack(),
-    ];
+    let outputs_data = vec![Bytes::new().pack(), Bytes::new().pack()];
 
     // build tx
     let tx = TransactionBuilder::default()
@@ -216,13 +209,9 @@ fn test_success_update_personal_data() {
     let flag_2_1 = protocol::mol_flag_2(
         "updateGlobal('max_nft_count', 10)",
         user1_lock_script.as_slice(),
-        None
+        None,
     );
-    let flag_2_2 = protocol::mol_flag_2(
-        "mint()",
-        user2_lock_script.as_slice(),
-        None
-    );
+    let flag_2_2 = protocol::mol_flag_2("mint()", user2_lock_script.as_slice(), None);
 
     // build inside-out type script and lock script
     let contract_script = context

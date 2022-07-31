@@ -29,6 +29,7 @@ end
 function updateGlobal (key, value)
     assert(msg.sender == msg.owner, "sender must be owner")
     assert(msg.global[key] ~= nil, "unsupported key " .. key)
+    assert(not msg.data, "only accept no data request")
     msg.global[key] = value
     return {
         owner = msg.sender,
@@ -37,6 +38,7 @@ function updateGlobal (key, value)
 end
 
 function mint ()
+    assert(not msg.data, "can not contain any input data")
     assert(msg.ckb_cost(500.55), "ckb not enough")
     local new_count = msg.global.minted_nft_count + 1
     if new_count <= msg.global.max_nft_count then
@@ -62,6 +64,7 @@ function update (key, value)
 end
 
 function transfer (to)
+    assert(msg.data, "must contain valid input data")
     msg.global.transfered_nft_count = msg.global.transfered_nft_count + 1
     return {
         owner = to,
@@ -73,7 +76,7 @@ function burn ()
     msg.global.burned_nft_count = msg.global.burned_nft_count + 1
     return {
         owner = msg.sender,
-        data = {}
+        data = nil
     }
 end
 

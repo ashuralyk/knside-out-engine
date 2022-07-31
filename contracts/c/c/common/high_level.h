@@ -183,9 +183,15 @@ int ckbx_apply_personal_output_by_code_hash(
         // burned empty cell
         if (ret == CKB_ITEM_MISSING)
         {
+            _len = len;
+            ckb_load_cell_data(cache, &_len, 0, i, CKB_SOURCE_OUTPUT);
+            if (_len > 0)
+            {
+                return ERROR_NO_PERONSAL_NO_DATA;
+            }
             mol_seg_t empty = { NULL, 0 };
             CHECK_RET(callback->call(callback->L, i, personal_owner, empty, callback->herr));
-            break;
+            continue;
         }
         if (ret != CKB_SUCCESS || _len > MAX_CACHE_SIZE)
         {
