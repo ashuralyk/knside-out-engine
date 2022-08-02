@@ -259,7 +259,7 @@ int ckbx_check_request_exist(uint8_t *cache, size_t len, size_t source, size_t i
     int ret = ckb_load_cell_by_field(cache, &len, 0, i, source, CKB_CELL_FIELD_LOCK);
     if (ret != CKB_SUCCESS || len > MAX_CACHE_SIZE)
     {
-        return ERROR_LOADING_SCRIPT;
+        return ERROR_NO_REQUEST_CELLS;
     }
     mol_seg_t script_seg = { cache, len };
     mol_seg_t script_args_seg = MolReader_Script_get_args(&script_seg);
