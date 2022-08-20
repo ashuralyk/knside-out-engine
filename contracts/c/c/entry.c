@@ -7,7 +7,7 @@ int lua_init(lua_State *L, int herr)
     luaL_openlibs(L);
     lua_register(L, "print", lua_println);
 
-    const char *table_checker_chunck = " \
+    const char *table_utility_chunck = " \
         function _compare_tables(tab1, tab2) \
             for k, v in pairs(tab1) do \
                 if type(v) == 'table' then \
@@ -25,10 +25,20 @@ int lua_init(lua_State *L, int herr)
             end \
             return true \
         end \
+        function _deep_copy(tab) \
+            local new_tab = {} \
+            for k, v in pairs(tab) do \
+                if type(v) == 'table' then \
+                    new_tab[k] = _deep_copy(v) \
+                else \
+                    new_tab[k] = v \
+                end \
+            return new_tab \
+        end \
     ";
-    if (luaL_loadstring(L, table_checker_chunck) || lua_pcall(L, 0, 0, herr))
+    if (luaL_loadstring(L, table_utility_chunck) || lua_pcall(L, 0, 0, herr))
     {
-        ckb_debug("[ERROR] invalid table checker chunck.");
+        ckb_debug("[ERROR] invalid table utility chunck.");
         return ERROR_LUA_INJECT;
     }
 
