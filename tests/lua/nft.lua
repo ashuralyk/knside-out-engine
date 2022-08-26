@@ -80,10 +80,12 @@ function burn ()
     }
 end
 
---[[
-    合约交互调用
-]]
-function composeTo ()
-    msg.xcall(msg.global.loot_project_id.hash, "composeFrom", msg.data)
-    msg.burn(msg.sender)
+function wrong_code ()
+    assert(false, "it's wrong code")
+    return {
+        owner = msg.sender,
+        data = {
+            token_id = 330
+        }
+    }
 end

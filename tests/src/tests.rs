@@ -212,20 +212,20 @@ fn test_success_update_personal_data() {
         .expect("type_id script");
     let user1_lock_script = always_success_lock_script.clone();
     let user2_lock_script = context
-        .build_script(&always_success_out_point, Bytes::from(vec![4]))
+        .build_script(&always_success_out_point, Bytes::from(vec![3]))
         .expect("user2 script");
+    let user3_lock_script = context
+        .build_script(&always_success_out_point, Bytes::from(vec![4]))
+        .expect("user3 script");
 
     // build project deployment and flag 0 and 2
     let luacode = std::fs::read_to_string("./lua/nft.lua").unwrap();
     let deployment = protocol::mol_deployment(luacode.as_str());
     let flag_0 = protocol::mol_flag_0(&type_id_script.calc_script_hash().unpack());
     let flag_1 = protocol::mol_flag_1(&type_id_script.calc_script_hash().unpack());
-    let flag_2_1 = protocol::mol_flag_2(
-        "updateGlobal('max_nft_count', 10)",
-        user1_lock_script.as_slice(),
-        None,
-    );
+    let flag_2_1 = protocol::mol_flag_2("updateGlobal('max_nft_count', 10)", user1_lock_script.as_slice(), None);
     let flag_2_2 = protocol::mol_flag_2("mint()", user2_lock_script.as_slice(), None);
+    let flag_2_3 = protocol::mol_flag_2("wrong_code()", user3_lock_script.as_slice(), None);
 
     // build inside-out type script and lock script
     let contract_script = context
@@ -233,10 +233,13 @@ fn test_success_update_personal_data() {
         .expect("contract script");
     let request_1_script = context
         .build_script(&out_point, Bytes::from(flag_2_1))
-        .expect("request script");
+        .expect("request1 script");
     let request_2_script = context
         .build_script(&out_point, Bytes::from(flag_2_2))
-        .expect("request script");
+        .expect("request2 script");
+    let request_3_script = context
+        .build_script(&out_point, Bytes::from(flag_2_3))
+        .expect("request3 script");
     let personal_script = context
         .build_script(&out_point, Bytes::from(flag_1))
         .expect("personal script");
@@ -298,6 +301,19 @@ fn test_success_update_personal_data() {
                 ),
             )
             .build(),
+        // locked personal request cell 3
+        CellInput::new_builder()
+            .previous_output(
+                context.create_cell(
+                    CellOutput::new_builder()
+                        .capacity(Capacity::bytes(1000).unwrap().pack())
+                        .lock(request_3_script)
+                        .type_(Some(personal_script.clone()).pack())
+                        .build(),
+                    Bytes::new(),
+                ),
+            )
+            .build(),
     ];
 
     // build project outputs
@@ -318,7 +334,13 @@ fn test_success_update_personal_data() {
         CellOutput::new_builder()
             .capacity(Capacity::bytes(1000).unwrap().pack())
             .lock(user2_lock_script)
-            .type_(Some(personal_script).pack())
+            .type_(Some(personal_script.clone()).pack())
+            .build(),
+        // unlocked normal cell for request 3
+        CellOutput::new_builder()
+            .capacity(Capacity::bytes(1000).unwrap().pack())
+            .lock(user3_lock_script)
+            // .type_(Some(personal_script).pack())
             .build(),
     ];
 
@@ -329,6 +351,7 @@ fn test_success_update_personal_data() {
         Bytes::from_static(next_global.as_bytes()).pack(),
         Bytes::new().pack(),
         Bytes::from_static(next_personal.as_bytes()).pack(),
+        Bytes::new().pack(),
     ];
 
     // build tx

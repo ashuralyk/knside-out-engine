@@ -13,14 +13,14 @@ typedef struct
 
 void _to_hex(char *hex, uint8_t *bytes, int size)
 {
-	int pointer = 0;
-	char hex_char[16];
-	for (int i = 0; i < size; ++i)
-	{
-		sprintf(hex_char, "%02x", (int)bytes[i]);
-		memcpy(&hex[pointer], hex_char, strlen(hex_char));
-		pointer += strlen(hex_char);
-	}
+    int pointer = 0;
+    char hex_char[16];
+    for (int i = 0; i < size; ++i)
+    {
+        sprintf(hex_char, "%02x", (int)bytes[i]);
+        memcpy(&hex[pointer], hex_char, strlen(hex_char));
+        pointer += strlen(hex_char);
+    }
 }
 
 void _strcat_table_key_value(lua_State *L, char *buffer, int size, int index, int is_key)
@@ -117,7 +117,7 @@ int lua_println(lua_State *L)
 
 int lua_load_project_code(lua_State *L, uint8_t *code, size_t len, int herr)
 {
-    if (luaL_loadbuffer(L, (const char *) code, len, "luavm") || lua_pcall(L, 0, 0, herr))
+    if (luaL_loadbuffer(L, (const char *)code, len, "luavm") || lua_pcall(L, 0, 0, herr))
     {
         char debug[256];
         sprintf(debug, "invalid lua script, length = %lu", len);
@@ -228,8 +228,8 @@ int lua_check_global_data(lua_State *L, const char *method, uint8_t *expected_js
 }
 
 int lua_check_personal_data(
-    lua_State *L, const char *method, uint8_t *owner, size_t owner_len, uint8_t *data, size_t data_len, int herr
-) {
+    lua_State *L, const char *method, uint8_t *owner, size_t owner_len, uint8_t *data, size_t data_len, int herr)
+{
     // load compare function
     lua_getglobal(L, "_compare_tables");
     // load first table parameter

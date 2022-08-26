@@ -5,6 +5,37 @@
 #include "../common/lua_wrap.h"
 #include "../common/high_level.h"
 
+int _setup_flashback(lua_State *L)
+{
+    char flashback[MAX_FUNCTION_CALL_SIZE];
+    sprintf(flashback, "%s = _deep_copy(msg)", LUA_MSG_FLASHBACK);
+    if (luaL_loadstring(L, flashback))
+    {
+        return ERROR_LUA_INJECT;
+    }
+    lua_setglobal(L, LUA_MSG_STORE);
+    sprintf(
+        flashback,
+        "msg.global = _deep_copy(%s.global)\nreturn { owner = %s.sender, data = _deep_copy(%s.data) }",
+        LUA_MSG_FLASHBACK, LUA_MSG_FLASHBACK, LUA_MSG_FLASHBACK);
+    if (luaL_loadstring(L, flashback))
+    {
+        return ERROR_LUA_INJECT;
+    }
+    lua_setglobal(L, LUA_MSG_RECOVER);
+    return CKB_SUCCESS;
+}
+
+int _store_recover_flashback(lua_State *L, bool recover, int herr)
+{
+    lua_getglobal(L, recover ? LUA_MSG_RECOVER : LUA_MSG_STORE);
+    if (lua_pcall(L, 0, recover, herr))
+    {
+        return ERROR_STORE_RECOVER_MSG_GLOBAL;
+    }
+    return CKB_SUCCESS;
+}
+
 int _apply_request_args(void *L, size_t i, mol_seg_t lock_args, mol_seg_t data, int herr)
 {
     if (lock_args.ptr[0] != FLAG_REQUEST)
@@ -27,19 +58,20 @@ int _apply_request_args(void *L, size_t i, mol_seg_t lock_args, mol_seg_t data, 
     uint8_t function_call[MAX_FUNCTION_CALL_SIZE] = LUA_PREFIX;
     CHECK_RET(ckbx_flag2_load_function_call(
         lock_args.ptr + 1, lock_args.size - 1,
-        function_call + strlen(LUA_PREFIX), MAX_FUNCTION_CALL_SIZE - strlen(LUA_PREFIX)
-    ));
+        function_call + strlen(LUA_PREFIX), MAX_FUNCTION_CALL_SIZE - strlen(LUA_PREFIX)));
     ckb_debug((const char *)function_call);
+    CHECK_RET(_store_recover_flashback(L, false, herr));
     if (luaL_loadstring(L, (const char *)function_call) || lua_pcall(L, 0, 1, herr))
     {
-        DEBUG_PRINT("[ERROR] invalid reqeust function call. (cell = %lu, payload = %s)", i, function_call);
-        return ERROR_APPLY_LUA_REQUEST;
+        DEBUG_PRINT("[ERROR] invalid request function call. (cell = %lu, payload = %s)", i, function_call);
+        lua_pop(L, 1);
+        CHECK_RET(_store_recover_flashback(L, true, herr));
     }
     // the return must be a table value
     if (lua_gettop(L) != top + 1 || !lua_istable(L, -1))
     {
-        DEBUG_PRINT("[ERROR] invalid function return. (cell = %lu, payload = %s)", i, function_call);
-        return ERROR_APPLY_LUA_REQUEST;
+        DEBUG_PRINT("[ERROR] invalid request function return. (cell = %lu, payload = %s)", i, function_call);
+        CHECK_RET(_store_recover_flashback(L, true, herr));
     }
     lua_rawseti(L, -2, i);
     return CKB_SUCCESS;
@@ -82,9 +114,8 @@ int _ckb_cost(lua_State *L)
     if (occupied_ckb + ckb > offerred_ckb)
     {
         DEBUG_PRINT(
-            "[ERROR] need more %4.f ckb. (cell = %lu)", 
-            (occupied_ckb + ckb - offerred_ckb) / (double)CKB_ONE, i
-        );
+            "[ERROR] need more %4.f ckb. (cell = %lu)",
+            (occupied_ckb + ckb - offerred_ckb) / (double)CKB_ONE, i);
         lua_pushboolean(L, false);
         return 1;
     }
@@ -104,9 +135,9 @@ int inject_personal_operation(uint8_t *cache, lua_State *L, int herr)
     CHECK_RET(lua_inject_random_seeds(L, seed, herr));
     // add ckb_cost method
     LuaOperation operations[] = {
-        { "ckb_cost", _ckb_cost }
-    };
+        {"ckb_cost", _ckb_cost}};
     CHECK_RET(lua_inject_operation_context(L, operations, 1));
+    CHECK_RET(_setup_flashback(L));
     return CKB_SUCCESS;
 }
 
@@ -134,42 +165,35 @@ int verify_personal_data(uint8_t *cache, lua_State *L, int herr, mol_seg_t scrip
         // first cell from tx-inputs must be Global Cell
         mol_seg_t input_global_data;
         CHECK_RET(ckbx_check_global_exist(
-            cache, MAX_CACHE_SIZE, CKB_SOURCE_INPUT, project_id, code_hash, &input_global_data
-        ));
+            cache, MAX_CACHE_SIZE, CKB_SOURCE_INPUT, project_id, code_hash, &input_global_data));
         CHECK_RET(lua_inject_json_context(L, input_global_data.ptr, input_global_data.size, "global"));
         // get lua code
         mol_seg_t lua_code_seg;
         CHECK_RET(ckbx_load_project_lua_code(
-            cache, MAX_CACHE_SIZE, CKB_SOURCE_CELL_DEP, index, &lua_code_seg
-        ));
+            cache, MAX_CACHE_SIZE, CKB_SOURCE_CELL_DEP, index, &lua_code_seg));
         // load lua code into lua_vm
         CHECK_RET(lua_load_project_code(L, lua_code_seg.ptr, lua_code_seg.size, herr));
         // inject owner hash
         uint8_t owner_hash[HASH_SIZE];
         len = HASH_SIZE;
         ckb_load_cell_by_field(
-            owner_hash, &len, 0, index, CKB_SOURCE_CELL_DEP, CKB_CELL_FIELD_LOCK_HASH
-        );
+            owner_hash, &len, 0, index, CKB_SOURCE_CELL_DEP, CKB_CELL_FIELD_LOCK_HASH);
         CHECK_RET(lua_inject_auth_context(L, owner_hash, "owner"));
         // apply each of requests
-        ApplyParams apply = { L, herr, _apply_request_args };
+        ApplyParams apply = {L, herr, _apply_request_args};
         CHECK_RET(ckbx_apply_lock_args_by_code_hash(
-            cache, MAX_CACHE_SIZE, CKB_SOURCE_INPUT, code_hash, &apply
-        ));
+            cache, MAX_CACHE_SIZE, CKB_SOURCE_INPUT, code_hash, &apply));
         // first cell from tx-outputs must be Global Cell as well
         mol_seg_t output_global_data;
         CHECK_RET(ckbx_check_global_exist(
-            cache, MAX_CACHE_SIZE, CKB_SOURCE_OUTPUT, project_id, code_hash, &output_global_data
-        ));
+            cache, MAX_CACHE_SIZE, CKB_SOURCE_OUTPUT, project_id, code_hash, &output_global_data));
         // check input/output global data
         CHECK_RET(lua_check_global_data(
-            L, "return msg.global", output_global_data.ptr, output_global_data.size, herr
-        ));
+            L, "return msg.global", output_global_data.ptr, output_global_data.size, herr));
         // check other outputs personal data
         apply.call = _apply_personal_data;
         CHECK_RET(ckbx_apply_personal_output_by_code_hash(
-            cache, MAX_CACHE_SIZE, 1, code_hash, &apply
-        ));
+            cache, MAX_CACHE_SIZE, 1, code_hash, &apply));
     }
     // personal/global data request mode
     else

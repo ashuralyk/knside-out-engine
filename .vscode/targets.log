@@ -1,6 +1,4 @@
 make all --print-data-base --no-builtin-variables --no-builtin-rules --question
-make: *** No rule to make target 'all'.  Stop.
-
 # GNU Make 4.2.1
 # Built for x86_64-pc-linux-gnu
 # Copyright (C) 1988-2016 Free Software Foundation, Inc.
@@ -8,7 +6,7 @@ make: *** No rule to make target 'all'.  Stop.
 # This is free software: you are free to change and redistribute it.
 # There is NO WARRANTY, to the extent permitted by law.
 
-# Make data base, printed on Tue Aug  2 13:17:04 2022
+# Make data base, printed on Fri Aug 26 14:15:30 2022
 
 # Variables
 
@@ -31,9 +29,9 @@ CURDIR := /home/vimchain/roguecamp/lua-engine
 # makefile
 SHELL = /bin/sh
 # environment
-VSCODE_NLS_CONFIG = {"locale":"zh-cn","availableLanguages":{"*":"zh-cn"},"_languagePackId":"1d735750dbb1b9066c7513078396ba0f.zh-cn","_translationsConfigFile":"/home/vimchain/.vscode-server/data/clp/1d735750dbb1b9066c7513078396ba0f.zh-cn/tcf.json","_cacheRoot":"/home/vimchain/.vscode-server/data/clp/1d735750dbb1b9066c7513078396ba0f.zh-cn","_resolvedLanguagePackCoreLocation":"/home/vimchain/.vscode-server/data/clp/1d735750dbb1b9066c7513078396ba0f.zh-cn/3b889b090b5ad5793f524b5d1d39fda662b96a2a","_corruptedFile":"/home/vimchain/.vscode-server/data/clp/1d735750dbb1b9066c7513078396ba0f.zh-cn/corrupted.info","_languagePackSupport":true}
+VSCODE_NLS_CONFIG = {"locale":"zh-cn","availableLanguages":{"*":"zh-cn"},"_languagePackId":"cc0490d1397af23dc5bf44a96fe15dbb.zh-cn","_translationsConfigFile":"/home/vimchain/.vscode-server/data/clp/cc0490d1397af23dc5bf44a96fe15dbb.zh-cn/tcf.json","_cacheRoot":"/home/vimchain/.vscode-server/data/clp/cc0490d1397af23dc5bf44a96fe15dbb.zh-cn","_resolvedLanguagePackCoreLocation":"/home/vimchain/.vscode-server/data/clp/cc0490d1397af23dc5bf44a96fe15dbb.zh-cn/e4503b30fc78200f846c62cf8091b76ff5547662","_corruptedFile":"/home/vimchain/.vscode-server/data/clp/cc0490d1397af23dc5bf44a96fe15dbb.zh-cn/corrupted.info","_languagePackSupport":true}
 # environment
-_ = /home/vimchain/.vscode-server/bin/3b889b090b5ad5793f524b5d1d39fda662b96a2a/node
+_ = /home/vimchain/.vscode-server/bin/e4503b30fc78200f846c62cf8091b76ff5547662/node
 # makefile
 MAKEFILE_LIST := 
 # 'override' directive
@@ -49,11 +47,11 @@ VSCODE_CWD = /mnt/d/Microsoft VS Code
 # default
 MAKE_HOST := x86_64-pc-linux-gnu
 # environment
-PATH = /home/vimchain/.vscode-server/bin/3b889b090b5ad5793f524b5d1d39fda662b96a2a/bin/remote-cli:/home/linuxbrew/.linuxbrew/bin:/home/linuxbrew/.linuxbrew/sbin:/home/vimchain/.cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/usr/lib/wsl/lib:/snap/bin:/home/vimchain/node/bin:/usr/local/go/bin:/home/vimchain/riscv/bin:/home/vimchain/.vscode-server/bin/899d46d82c4c95423fb7e10e68eba52050e30ba3/bin/
+PATH = /home/vimchain/.vscode-server/bin/e4503b30fc78200f846c62cf8091b76ff5547662/bin/remote-cli:/home/linuxbrew/.linuxbrew/bin:/home/linuxbrew/.linuxbrew/sbin:/home/vimchain/.cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/usr/lib/wsl/lib:/snap/bin:/home/vimchain/node/bin:/usr/local/go/bin:/home/vimchain/riscv/bin:/home/vimchain/.vscode-server/bin/899d46d82c4c95423fb7e10e68eba52050e30ba3/bin/
 # environment
 ELECTRON_RUN_AS_NODE = 1
 # environment
-VSCODE_IPC_HOOK_CLI = /tmp/vscode-ipc-e960d20c-e1af-471a-935e-ecdd506a6a8a.sock
+VSCODE_IPC_HOOK_CLI = /tmp/vscode-ipc-1a528218-80be-4afc-a013-f77e36a2ed9f.sock
 # default
 .FEATURES := target-specific order-only second-expansion else-if shortest-stem undefine oneshell archives jobserver output-sync check-symlink load
 # environment
@@ -81,7 +79,7 @@ HOMEBREW_CELLAR = /home/linuxbrew/.linuxbrew/Cellar
 # environment
 LOGNAME = vimchain
 # environment
-APPLICATION_INSIGHTS_NO_DIAGNOSTIC_CHANNEL = 1
+APPLICATION_INSIGHTS_NO_DIAGNOSTIC_CHANNEL = true
 # environment
 LESSCLOSE = /usr/bin/lesspipe %s %s
 # environment
@@ -121,7 +119,7 @@ MFLAGS = -pqrR
 # automatic
 *D = $(patsubst %/,%,$(dir $*))
 # environment
-windows_ip = 172.17.192.1
+windows_ip = 172.25.0.1
 # environment
 HOMEBREW_PREFIX = /home/linuxbrew/.linuxbrew
 # automatic
@@ -137,7 +135,7 @@ MAKEFILES :=
 # automatic
 <F = $(notdir $<)
 # environment
-https_proxy = 172.17.192.1:1082
+https_proxy = 172.25.0.1:1082
 # environment
 LC_ALL = C
 # environment
@@ -151,7 +149,7 @@ SUFFIXES :=
 # default
 .RECIPEPREFIX := 
 # environment
-http_proxy = 172.17.192.1:1082
+http_proxy = 172.25.0.1:1082
 # environment
 LANG = C
 # environment
@@ -169,9 +167,9 @@ MOTD_SHOWN = update-motd
 
 # Directories
 
-# . (device 2064, inode 1581057): 18 files, no impossibilities.
+# . (device 2064, inode 1581057): 17 files, no impossibilities.
 
-# 18 files, no impossibilities in 1 directories.
+# 17 files, no impossibilities in 1 directories.
 
 # Implicit Rules
 
@@ -221,12 +219,14 @@ GNUmakefile:
 
 # No general ('VPATH' variable) search path.
 
-# strcache buffers: 1 (0) / strings = 26 / storage = 242 B / avg = 9 B
-# current buf: size = 8162 B / used = 242 B / count = 26 / avg = 9 B
+# strcache buffers: 1 (0) / strings = 25 / storage = 235 B / avg = 9 B
+# current buf: size = 8162 B / used = 235 B / count = 25 / avg = 9 B
 
-# strcache performance: lookups = 29 / hit rate = 10%
+# strcache performance: lookups = 28 / hit rate = 10%
 # hash-table stats:
-# Load=26/8192=0%, Rehash=0, Collisions=1/29=3%
-# Finished Make data base on Tue Aug  2 13:17:04 2022
+# Load=25/8192=0%, Rehash=0, Collisions=1/28=4%
+# Finished Make data base on Fri Aug 26 14:15:30 2022
 
  
+make: *** No rule to make target 'all'.  Stop.
+

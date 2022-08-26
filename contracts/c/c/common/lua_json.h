@@ -29,11 +29,9 @@ int _json_to_table(lua_State *L, char *json, size_t len, int *out_count)
     {
         *out_count = count;
     }
-    
+
     lua_newtable(L);
-    return ttype == JSMN_OBJECT ?
-        _json_to_table_internal_table(L, json, tokens, count) :
-        _json_to_table_internal_array(L, json, tokens, count);
+    return ttype == JSMN_OBJECT ? _json_to_table_internal_table(L, json, tokens, count) : _json_to_table_internal_array(L, json, tokens, count);
 }
 
 void _json_handle_primitive_and_string(lua_State *L, char *json, jsmntok_t *tokens, int i)
@@ -71,41 +69,39 @@ int _json_to_table_internal_table(lua_State *L, char *json, jsmntok_t *tokens, i
         int j = i + 1;
         switch (tokens[j].type)
         {
-            case JSMN_PRIMITIVE:
-            case JSMN_STRING:
-            {
-                _json_handle_primitive_and_string(L, json, tokens, j);
-                char old_char = json[tokens[i].end];
-                json[tokens[i].end] = '\0';
-                lua_setfield(L, -2, json + tokens[i].start);
-                // ckb_debug(json + tokens[i].start);
-                json[tokens[i].end] = old_char;
-                i += 1;
-                break;
-            }
-            case JSMN_ARRAY:
-            case JSMN_OBJECT:
-            {
-                int nested_count;
-                char old_char = json[tokens[j].end];
-                if (_json_to_table(L, json + tokens[j].start, tokens[j].end - tokens[j].start, &nested_count) != CKB_SUCCESS)
-                {
-                    return ERROR_JSON_TO_TABLE;
-                }
-                json[tokens[j].end] = old_char;
-                // mark table key
-                old_char = json[tokens[i].end];
-                json[tokens[i].end] = '\0';
-                lua_setfield(L, -2, json + tokens[i].start);
-                // ckb_debug(json + tokens[i].start);
-                json[tokens[i].end] = old_char;
-                i += nested_count;
-                break;
-            }
-            default:
+        case JSMN_PRIMITIVE:
+        case JSMN_STRING:
+        {
+            _json_handle_primitive_and_string(L, json, tokens, j);
+            char old_char = json[tokens[i].end];
+            json[tokens[i].end] = '\0';
+            lua_setfield(L, -2, json + tokens[i].start);
+            // ckb_debug(json + tokens[i].start);
+            json[tokens[i].end] = old_char;
+            i += 1;
+            break;
+        }
+        case JSMN_ARRAY:
+        case JSMN_OBJECT:
+        {
+            int nested_count;
+            char old_char = json[tokens[j].end];
+            if (_json_to_table(L, json + tokens[j].start, tokens[j].end - tokens[j].start, &nested_count) != CKB_SUCCESS)
             {
                 return ERROR_JSON_TO_TABLE;
             }
+            json[tokens[j].end] = old_char;
+            // mark table key
+            old_char = json[tokens[i].end];
+            json[tokens[i].end] = '\0';
+            lua_setfield(L, -2, json + tokens[i].start);
+            // ckb_debug(json + tokens[i].start);
+            json[tokens[i].end] = old_char;
+            i += nested_count;
+            break;
+        }
+        default:
+            return ERROR_JSON_TO_TABLE;
         }
     }
     return CKB_SUCCESS;
@@ -118,29 +114,27 @@ int _json_to_table_internal_array(lua_State *L, char *json, jsmntok_t *tokens, i
     {
         switch (tokens[i].type)
         {
-            case JSMN_PRIMITIVE:
-            case JSMN_STRING:
-            {
-                _json_handle_primitive_and_string(L, json, tokens, i);
-                lua_rawseti(L, -2, k);
-                break;
-            }
-            case JSMN_OBJECT:
-            case JSMN_ARRAY:
-            {
-                int nested_count;
-                if (_json_to_table(L, json + tokens[i].start, tokens[i].end - tokens[i].start, &nested_count) != CKB_SUCCESS)
-                {
-                    return ERROR_JSON_TO_TABLE;
-                }
-                lua_rawseti(L, -2, k);
-                i += nested_count - 1;
-                break;
-            }
-            default:
+        case JSMN_PRIMITIVE:
+        case JSMN_STRING:
+        {
+            _json_handle_primitive_and_string(L, json, tokens, i);
+            lua_rawseti(L, -2, k);
+            break;
+        }
+        case JSMN_OBJECT:
+        case JSMN_ARRAY:
+        {
+            int nested_count;
+            if (_json_to_table(L, json + tokens[i].start, tokens[i].end - tokens[i].start, &nested_count) != CKB_SUCCESS)
             {
                 return ERROR_JSON_TO_TABLE;
             }
+            lua_rawseti(L, -2, k);
+            i += nested_count - 1;
+            break;
+        }
+        default:
+            return ERROR_JSON_TO_TABLE;
         }
     }
     return CKB_SUCCESS;

@@ -24,8 +24,7 @@ int verify_request_data(uint8_t *cache, lua_State *L, int herr, mol_seg_t script
     {
         len = HASH_SIZE;
         ret = ckb_load_cell_by_field(
-            output_lockhash, &len, 0, indices[i], CKB_SOURCE_OUTPUT, CKB_CELL_FIELD_LOCK_HASH
-        );
+            output_lockhash, &len, 0, indices[i], CKB_SOURCE_OUTPUT, CKB_CELL_FIELD_LOCK_HASH);
         if (ret != CKB_SUCCESS || memcmp(output_lockhash, caller_lockhash, HASH_SIZE))
         {
             return ERROR_LOADING_SCRIPT_HASH;
