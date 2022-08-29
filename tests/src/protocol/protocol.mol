@@ -2,19 +2,6 @@ array Hash [byte; 32];
 vector String <byte>;
 option StringOpt (String);
 
-table ProjectInfo {
-    name: String,
-    author: String,
-    website: String,
-    description: String,
-}
-
-// contain contract code and project info
-table Deployment {
-    code: String,
-    project: ProjectInfo,
-}
-
 // represent global data
 table Flag_0 {
     project_id: Hash,

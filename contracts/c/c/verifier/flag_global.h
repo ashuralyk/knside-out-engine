@@ -36,12 +36,13 @@ int verify_global_data(uint8_t *cache, lua_State *L, int herr, mol_seg_t script_
         {
             return ERROR_NO_DEPLOYMENT_CELL;
         }
-        mol_seg_t lua_code_seg;
-        CHECK_RET(ckbx_load_project_lua_code(cache, MAX_CACHE_SIZE, CKB_SOURCE_OUTPUT, index, &lua_code_seg));
-        // load lua code into lua_vm
-        CHECK_RET(lua_load_project_code(L, lua_code_seg.ptr, lua_code_seg.size, herr));
-        // check global data format
         uint64_t len = MAX_CACHE_SIZE;
+        // load lua code
+        CHECK_RET(ckb_load_cell_data(cache, &len, 0, index, CKB_SOURCE_OUTPUT));
+        // push lua code into lua_vm
+        CHECK_RET(lua_load_project_code(L, cache, len, herr));
+        // check global data format
+        len = MAX_CACHE_SIZE;
         CHECK_RET(ckb_load_cell_data(cache, &len, 0, 0, CKB_SOURCE_GROUP_OUTPUT));
         CHECK_RET(lua_check_global_data(L, "return construct()", cache, len, herr));
     }

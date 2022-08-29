@@ -37,7 +37,6 @@ fn test_success_deploy_project() {
 
     // build project deployment and flag 0
     let luacode = std::fs::read_to_string("./lua/nft.lua").unwrap();
-    let deployment = protocol::mol_deployment(luacode.as_str());
     let flag_0 = protocol::mol_flag_0(&type_id_script.calc_script_hash().unpack());
 
     // build inside-out type script
@@ -77,14 +76,15 @@ fn test_success_deploy_project() {
 
     // build outputs data
     let lua = mlua::Lua::new();
-    lua.load(&luacode).exec().expect("exec lua code");
+    let luacode_chunck = lua.load(&luacode).into_function().unwrap();
+    luacode_chunck.call::<_, ()>(()).expect("exec lua code");
     let func_init_global: mlua::Function = lua.globals().get("construct").expect("get construct");
     let global_data = func_init_global
         .call::<_, mlua::Table>(())
         .expect("call construct");
     let global_data_json = serde_json::to_string(&global_data).unwrap();
     let outputs_data = vec![
-        Bytes::from(deployment.as_bytes().to_vec()).pack(),
+        Bytes::from(luacode_chunck.dump(true)).pack(),
         Bytes::from(global_data_json.as_bytes().to_vec()).pack(),
     ];
 
@@ -220,7 +220,6 @@ fn test_success_update_personal_data() {
 
     // build project deployment and flag 0 and 2
     let luacode = std::fs::read_to_string("./lua/nft.lua").unwrap();
-    let deployment = protocol::mol_deployment(luacode.as_str());
     let flag_0 = protocol::mol_flag_0(&type_id_script.calc_script_hash().unpack());
     let flag_1 = protocol::mol_flag_1(&type_id_script.calc_script_hash().unpack());
     let flag_2_1 = protocol::mol_flag_2("updateGlobal('max_nft_count', 10)", user1_lock_script.as_slice(), None);
@@ -246,6 +245,8 @@ fn test_success_update_personal_data() {
     let contract_dep = CellDep::new_builder().out_point(out_point).build();
 
     // build project cell dep with deployment
+    let lua = mlua::Lua::new();
+    let luacode_chunck = lua.load(&luacode).into_function().unwrap();
     let deployment_dep = CellDep::new_builder()
         .out_point(
             context.create_cell(
@@ -254,7 +255,7 @@ fn test_success_update_personal_data() {
                     .type_(Some(type_id_script).pack())
                     .build_exact_capacity(Capacity::zero())
                     .unwrap(),
-                Bytes::from(deployment.as_bytes().to_vec()),
+                Bytes::from(luacode_chunck.dump(true)),
             ),
         )
         .build();

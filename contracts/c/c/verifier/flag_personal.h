@@ -36,8 +36,9 @@ int _store_recover_flashback(lua_State *L, bool recover, int herr)
     return CKB_SUCCESS;
 }
 
-int _apply_request_args(void *L, size_t i, mol_seg_t lock_args, mol_seg_t data, int herr)
+int _apply_request_args(void *args, size_t i, mol_seg_t lock_args, mol_seg_t data, int herr)
 {
+    lua_State *L = (lua_State *)args;
     if (lock_args.ptr[0] != FLAG_REQUEST)
     {
         return ERROR_REQUEST_FLAG;
@@ -81,7 +82,7 @@ int _apply_personal_data(void *L, size_t i, mol_seg_t owner, mol_seg_t data, int
 {
     char method[MAX_FUNCTION_CALL_SIZE];
     sprintf(method, "return %s[%lu]", LUA_UNCHECKED, i);
-    int ret = lua_check_personal_data(L, method, owner.ptr, owner.size, data.ptr, data.size, herr);
+    int ret = lua_check_personal_data((lua_State *)L, method, owner.ptr, owner.size, data.ptr, data.size, herr);
     if (ret != CKB_SUCCESS)
     {
         DEBUG_PRINT("[ERROR] mismatched input/output. (cell = %lu)", i);
@@ -168,11 +169,10 @@ int verify_personal_data(uint8_t *cache, lua_State *L, int herr, mol_seg_t scrip
             cache, MAX_CACHE_SIZE, CKB_SOURCE_INPUT, project_id, code_hash, &input_global_data));
         CHECK_RET(lua_inject_json_context(L, input_global_data.ptr, input_global_data.size, "global"));
         // get lua code
-        mol_seg_t lua_code_seg;
-        CHECK_RET(ckbx_load_project_lua_code(
-            cache, MAX_CACHE_SIZE, CKB_SOURCE_CELL_DEP, index, &lua_code_seg));
+        len = MAX_CACHE_SIZE;
+        CHECK_RET(ckb_load_cell_data(cache, &len, 0, index, CKB_SOURCE_CELL_DEP));
         // load lua code into lua_vm
-        CHECK_RET(lua_load_project_code(L, lua_code_seg.ptr, lua_code_seg.size, herr));
+        CHECK_RET(lua_load_project_code(L, cache, len, herr));
         // inject owner hash
         uint8_t owner_hash[HASH_SIZE];
         len = HASH_SIZE;

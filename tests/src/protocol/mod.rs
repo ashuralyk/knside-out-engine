@@ -31,28 +31,6 @@ fn mol_string_opt(v: Option<&[u8]>) -> protocol::StringOpt {
     }
 }
 
-fn mol_project_info(
-    name: &str,
-    author: &str,
-    website: &str,
-    description: &str,
-) -> protocol::ProjectInfo {
-    protocol::ProjectInfo::new_builder()
-        .name(mol_string(name.as_bytes()))
-        .author(mol_string(author.as_bytes()))
-        .website(mol_string(website.as_bytes()))
-        .description(mol_string(description.as_bytes()))
-        .build()
-}
-
-pub fn mol_deployment(lua_code: &str) -> protocol::Deployment {
-    let project_info = mol_project_info("", "", "", "");
-    protocol::Deployment::new_builder()
-        .code(mol_string(lua_code.as_bytes()))
-        .project(project_info)
-        .build()
-}
-
 pub fn mol_flag_0(hash: &[u8; 32]) -> Vec<u8> {
     let mut flag_0_bytes = protocol::Flag0::new_builder()
         .project_id(mol_hash(hash))

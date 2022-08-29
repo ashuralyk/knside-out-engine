@@ -391,24 +391,6 @@ int ckbx_check_personal_update_mode(
     return CKB_SUCCESS;
 }
 
-int ckbx_load_project_lua_code(
-    uint8_t *cache, size_t len, uint8_t source, size_t i, mol_seg_t *code_seg)
-{
-    int ret = ckb_load_cell_data(cache, &len, 0, i, source);
-    if (ret != CKB_SUCCESS || len > MAX_CACHE_SIZE)
-    {
-        return ERROR_DEPLOYMENT_FORMAT;
-    }
-    mol_seg_t deployment_seg = {cache, len};
-    if (MolReader_Deployment_verify(&deployment_seg, false) != MOL_OK)
-    {
-        return ERROR_DEPLOYMENT_FORMAT;
-    }
-    mol_seg_t lua_code_seg = MolReader_Deployment_get_code(&deployment_seg);
-    *code_seg = MolReader_String_raw_bytes(&lua_code_seg);
-    return CKB_SUCCESS;
-}
-
 int ckbx_get_random_seeds(uint8_t *cache, size_t len, uint8_t seeds[HALF_HASH_SIZE])
 {
     blake2b_state hasher;
