@@ -3,10 +3,7 @@
 
 #include <stdlib.h>
 #include "ckb_syscalls.h"
-
-#define bool int
-#define true 1
-#define false 0
+#include "blockchain.h"
 
 #define CHECK_RET(x) \
     ret = x;         \
@@ -31,10 +28,9 @@
 #define CKB_ONE 100000000
 
 #define LUA_PREFIX "return "
-#define LUA_UNCHECKED "__unchecked"
-#define LUA_MSG_FLASHBACK "__msg_flashback"
-#define LUA_MSG_STORE "__store_msg"
-#define LUA_MSG_RECOVER "__recover_msg"
+#define LUA_UNCHECKED "__koc_unchecked"
+#define LUA_KOC "KOC"
+#define LUA_KOC_BACKUP "__koc_backup"
 
 enum FALG
 {
@@ -53,8 +49,10 @@ enum ERROR
     ERROR_LOADING_SCRIPT_HASH,
     ERROR_CHECK_GLOBAL_MODE,
     ERROR_CHECK_PERSONAL_MODE,
+    ERROR_CHECK_PARALLEL_CKB,
     ERROR_LUA_INJECT,
     ERROR_LUA_SCRIPT_ARGS,
+    ERROR_LUA_DEEP_COPY,
     ERROR_GLOBAL_ARGS,
     ERROR_REQUEST_ARGS,
     ERROR_REQUEST_CALLER_HASH,
@@ -67,11 +65,11 @@ enum ERROR
     ERROR_RUN_LUA_CODE,
     ERROR_CHECK_LUA_GLOBAL_DATA,
     ERROR_CHECK_LUA_PERSONAL_DATA,
-    ERROR_REQUEST_FLAG,
     ERROR_REQUEST_EXCESSIVE,
     ERROR_REQUEST_NOT_FOUND,
-    ERROR_UNCONTINUOUS_REQUEST,
-    ERROR_STORE_RECOVER_MSG_GLOBAL,
+    ERROR_REQUEST_FLAG,
+    ERROR_UNCONTINUOUS_UNCHECKED,
+    ERROR_UNMATCHED_REQUEST_CKB,
     ERROR_TABLE_TO_SJON,
     ERROR_JSON_TO_TABLE,
     ERROR_UNINITIAL_CONTEXT,

@@ -133,8 +133,8 @@ int lua_inject_json_context(lua_State *L, uint8_t *json_data, size_t len, const 
     {
         return CKB_SUCCESS;
     }
-    // check `msg` or make new one
-    lua_getglobal(L, "msg");
+    // check `KOC` or make new one
+    lua_getglobal(L, LUA_KOC);
     if (!lua_istable(L, -1))
     {
         lua_newtable(L);
@@ -143,15 +143,15 @@ int lua_inject_json_context(lua_State *L, uint8_t *json_data, size_t len, const 
     int ret = CKB_SUCCESS;
     CHECK_RET(_json_to_table(L, (char *)json_data, len, NULL));
     lua_setfield(L, -2, name);
-    // setup `msg`
-    lua_setglobal(L, "msg");
+    // setup `KOC`
+    lua_setglobal(L, LUA_KOC);
     return CKB_SUCCESS;
 }
 
 int lua_inject_auth_context(lua_State *L, uint8_t auth_hash[HASH_SIZE], const char *name)
 {
-    // check `msg` or make new one
-    lua_getglobal(L, "msg");
+    // check `KOC` or make new one
+    lua_getglobal(L, LUA_KOC);
     if (!lua_istable(L, -1))
     {
         lua_newtable(L);
@@ -161,15 +161,15 @@ int lua_inject_auth_context(lua_State *L, uint8_t auth_hash[HASH_SIZE], const ch
     _to_hex(hex, auth_hash, HASH_SIZE);
     lua_pushlstring(L, hex, HASH_HEX_SIZE);
     lua_setfield(L, -2, name);
-    // reset `msg`
-    lua_setglobal(L, "msg");
+    // reset `KOC`
+    lua_setglobal(L, LUA_KOC);
     return CKB_SUCCESS;
 }
 
 int lua_inject_operation_context(lua_State *L, LuaOperation *operations, size_t len)
 {
-    // check `msg` or make new one
-    lua_getglobal(L, "msg");
+    // check `KOC` or make new one
+    lua_getglobal(L, LUA_KOC);
     if (!lua_istable(L, -1))
     {
         lua_newtable(L);
@@ -180,8 +180,8 @@ int lua_inject_operation_context(lua_State *L, LuaOperation *operations, size_t 
         lua_pushcfunction(L, operations[i].callback);
         lua_setfield(L, -2, operations[i].name);
     }
-    // reset `msg`
-    lua_setglobal(L, "msg");
+    // reset `KOC`
+    lua_setglobal(L, LUA_KOC);
     return CKB_SUCCESS;
 }
 
@@ -200,7 +200,7 @@ int lua_inject_random_seeds(lua_State *L, uint64_t seed[2], int herr)
     return CKB_SUCCESS;
 }
 
-int lua_check_global_data(lua_State *L, const char *method, uint8_t *expected_json, size_t len, int herr)
+int lua_check_global_data(lua_State *L, const char *method, mol_seg_t driver, mol_seg_t json, int herr)
 {
     // load compare function
     lua_getglobal(L, "_compare_tables");
@@ -215,9 +215,17 @@ int lua_check_global_data(lua_State *L, const char *method, uint8_t *expected_js
     {
         return ERROR_CHECK_LUA_GLOBAL_DATA;
     }
-    int ret = CKB_SUCCESS;
     // load second table parameter
-    CHECK_RET(_json_to_table(L, (char *)expected_json, len, NULL));
+    lua_newtable(L);
+    // fill `driver` object
+    char hex[driver.size * 2];
+    _to_hex(hex, driver.ptr, driver.size);
+    lua_pushlstring(L, hex, driver.size * 2);
+    lua_setfield(L, -2, "driver");
+    // fill `global` object
+    int ret = CKB_SUCCESS;
+    CHECK_RET(_json_to_table(L, (char *)json.ptr, json.size, NULL));
+    lua_setfield(L, -2, "global");
     // call to compare two tables
     lua_pcall(L, 2, 1, herr);
     if (!lua_toboolean(L, -1))
@@ -227,8 +235,7 @@ int lua_check_global_data(lua_State *L, const char *method, uint8_t *expected_js
     return CKB_SUCCESS;
 }
 
-int lua_check_personal_data(
-    lua_State *L, const char *method, uint8_t *owner, size_t owner_len, uint8_t *data, size_t data_len, int herr)
+int lua_check_personal_data(lua_State *L, const char *method, mol_seg_t owner, mol_seg_t personal, int herr)
 {
     // load compare function
     lua_getglobal(L, "_compare_tables");
@@ -243,30 +250,82 @@ int lua_check_personal_data(
     {
         return ERROR_CHECK_LUA_PERSONAL_DATA;
     }
-    int ret = CKB_SUCCESS;
     // create data table for comparision
     lua_newtable(L);
-    char hex[owner_len * 2];
-    _to_hex(hex, owner, owner_len);
-    lua_pushlstring(L, hex, owner_len * 2);
-    lua_setfield(L, -2, "owner");
-    if (data != NULL)
+    // file `user` object
+    char hex[owner.size * 2];
+    _to_hex(hex, owner.ptr, owner.size);
+    lua_pushlstring(L, hex, owner.size * 2);
+    lua_setfield(L, -2, "user");
+    // file `personal` object
+    if (personal.ptr != NULL)
     {
-        if (data_len > 0)
+        if (personal.size > 0)
         {
-            CHECK_RET(_json_to_table(L, (char *)data, data_len, NULL));
+            int ret = CKB_SUCCESS;
+            CHECK_RET(_json_to_table(L, (char *)personal.ptr, personal.size, NULL));
         }
         else
         {
             lua_newtable(L);
         }
-        lua_setfield(L, -2, "data");
+        lua_setfield(L, -2, "personal");
     }
     // compare with unchecked table
     lua_pcall(L, 2, 1, herr);
     if (!lua_toboolean(L, -1))
     {
         return ERROR_CHECK_LUA_PERSONAL_DATA;
+    }
+    return CKB_SUCCESS;
+}
+
+int lua_copy_partial_table(lua_State *L, const char *keys[], size_t len)
+{
+    if (!lua_istable(L, -1))
+    {
+        return ERROR_LUA_DEEP_COPY;
+    }
+    int real_i = lua_gettop(L);
+    lua_newtable(L);
+    int copy_i = lua_gettop(L);
+    for (size_t i = 0; i < len; ++i)
+    {
+        lua_pushstring(L, keys[i]);
+        lua_gettable(L, real_i);
+        lua_setfield(L, copy_i, keys[i]);
+    }
+    return CKB_SUCCESS;
+}
+
+int lua_deep_copy_table(lua_State *L)
+{
+    if (!lua_istable(L, -1))
+    {
+        return ERROR_LUA_DEEP_COPY;
+    }
+    int real_i = lua_gettop(L);
+    lua_newtable(L);
+    int copy_i = lua_gettop(L);
+    // start tranverse
+    lua_pushnil(L);
+    while (lua_next(L, real_i))
+    {
+        if (lua_istable(L, -1))
+        {
+            lua_deep_copy_table(L);
+            lua_pushvalue(L, -3);
+            lua_pushvalue(L, -2);
+            lua_settable(L, copy_i);
+            lua_pop(L, 2);
+        }
+        else
+        {
+            lua_pushvalue(L, -2);
+            lua_pushvalue(L, -2);
+            lua_settable(L, copy_i);
+            lua_pop(L, 1);
+        }
     }
     return CKB_SUCCESS;
 }

@@ -2,7 +2,6 @@
 #define CKB_LUA_HIGH_LEVEL
 
 #include "header.h"
-#include "blockchain.h"
 #include "blake2b.h"
 #include "../molecule/protocol.h"
 
@@ -275,8 +274,8 @@ int ckbx_check_request_exist(uint8_t *cache, size_t len, size_t source, size_t i
 }
 
 int ckbx_check_global_exist(
-    uint8_t *cache, size_t len, uint8_t source, uint8_t expected_project_id[HASH_SIZE],
-    uint8_t expected_code_hash[HASH_SIZE], mol_seg_t *global_data)
+    uint8_t *cache, size_t len, size_t source, uint8_t expected_project_id[HASH_SIZE],
+    uint8_t expected_code_hash[HASH_SIZE], mol_seg_t *global_data, uint8_t global_driver[HASH_SIZE])
 {
     int ret = ckb_load_cell_by_field(cache, &len, 0, 0, source, CKB_CELL_FIELD_TYPE);
     if (ret != CKB_SUCCESS || len > MAX_CACHE_SIZE)
@@ -302,6 +301,7 @@ int ckbx_check_global_exist(
     {
         return ERROR_GLOBAL_ARGS;
     }
+    // dump global cell data
     len = MAX_CACHE_SIZE;
     ret = ckb_load_cell_data(cache, &len, 0, 0, source);
     if (ret != CKB_SUCCESS || len > MAX_CACHE_SIZE)
@@ -310,11 +310,18 @@ int ckbx_check_global_exist(
     }
     mol_seg_t data = {cache, len};
     *global_data = data;
+    // dump global lock script_hash
+    len = HASH_SIZE;
+    ret = ckb_load_cell_by_field(global_driver, &len, 0, 0, source, CKB_CELL_FIELD_LOCK_HASH);
+    if (ret != CKB_SUCCESS)
+    {
+        return ERROR_LOADING_GLOBAL_CELL;
+    }
     return CKB_SUCCESS;
 }
 
 int ckbx_check_reqeust_hash_exist(
-    uint8_t source, uint8_t expected_hash[HASH_SIZE], size_t indices[MAX_SAME_REQUEST_COUNT])
+    size_t source, uint8_t expected_hash[HASH_SIZE], size_t indices[MAX_SAME_REQUEST_COUNT])
 {
     uint8_t lock_hash[HASH_SIZE];
     uint64_t len = HASH_SIZE;
@@ -388,6 +395,28 @@ int ckbx_check_personal_update_mode(
     mol_seg_t script_seg = {cache, len};
     mol_seg_t code_hash_seg = MolReader_Script_get_code_hash(&script_seg);
     *is_update = (memcmp(code_hash, code_hash_seg.ptr, HASH_SIZE) == 0);
+    return CKB_SUCCESS;
+}
+
+int ckbx_get_parallel_cell_capacity(
+    size_t left_source, bool left_occupied, size_t right_source, bool right_occupied,
+    size_t i, uint64_t *left_ckb, uint64_t *right_ckb)
+{
+    size_t len = sizeof(uint64_t);
+    int ret = ckb_load_cell_by_field(
+        left_ckb, &len, 0, i, left_source,
+        left_occupied ? CKB_CELL_FIELD_OCCUPIED_CAPACITY : CKB_CELL_FIELD_CAPACITY);
+    if (ret != CKB_SUCCESS || len != sizeof(uint64_t))
+    {
+        return ERROR_CHECK_PARALLEL_CKB;
+    }
+    ret = ckb_load_cell_by_field(
+        right_ckb, &len, 0, i, right_source,
+        right_occupied ? CKB_CELL_FIELD_OCCUPIED_CAPACITY : CKB_CELL_FIELD_CAPACITY);
+    if (ret != CKB_SUCCESS || len != sizeof(uint64_t))
+    {
+        return ERROR_CHECK_PARALLEL_CKB;
+    }
     return CKB_SUCCESS;
 }
 

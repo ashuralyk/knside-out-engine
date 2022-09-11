@@ -74,14 +74,25 @@ fn test_success_deploy_project() {
             .build(),
     ];
 
-    // build outputs data
+    // prepare driver and owner
+    let owner = hex::encode(&always_success_lock_script.calc_script_hash().raw_data());
+    let driver = owner.clone();
+
+    // prepare lua and context
     let lua = mlua::Lua::new();
+    let context_koc = lua.create_table().unwrap();
+    context_koc.set("owner", owner).unwrap();
+    context_koc.set("driver", driver).unwrap();
+    lua.globals().set("KOC", context_koc);
+
+    // build outputs data
     let luacode_chunck = lua.load(&luacode).into_function().unwrap();
     luacode_chunck.call::<_, ()>(()).expect("exec lua code");
     let func_init_global: mlua::Function = lua.globals().get("construct").expect("get construct");
-    let global_data = func_init_global
+    let global_driver_data = func_init_global
         .call::<_, mlua::Table>(())
         .expect("call construct");
+    let global_data: mlua::Table = global_driver_data.get("global").unwrap();
     let global_data_json = serde_json::to_string(&global_data).unwrap();
     let outputs_data = vec![
         Bytes::from(luacode_chunck.dump(true)).pack(),
@@ -222,7 +233,11 @@ fn test_success_update_personal_data() {
     let luacode = std::fs::read_to_string("./lua/nft.lua").unwrap();
     let flag_0 = protocol::mol_flag_0(&type_id_script.calc_script_hash().unpack());
     let flag_1 = protocol::mol_flag_1(&type_id_script.calc_script_hash().unpack());
-    let flag_2_1 = protocol::mol_flag_2("updateGlobal('max_nft_count', 10)", user1_lock_script.as_slice(), None);
+    let flag_2_1 = protocol::mol_flag_2(
+        "updateGlobal('max_nft_count', 10)",
+        user1_lock_script.as_slice(),
+        None,
+    );
     let flag_2_2 = protocol::mol_flag_2("mint()", user2_lock_script.as_slice(), None);
     let flag_2_3 = protocol::mol_flag_2("wrong_code()", user3_lock_script.as_slice(), None);
 

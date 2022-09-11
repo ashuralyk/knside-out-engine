@@ -36,15 +36,29 @@ int verify_global_data(uint8_t *cache, lua_State *L, int herr, mol_seg_t script_
         {
             return ERROR_NO_DEPLOYMENT_CELL;
         }
-        uint64_t len = MAX_CACHE_SIZE;
+        // inject `owner` into KOC context
+        uint64_t len = HASH_SIZE;
+        uint8_t owner_lockhash[HASH_SIZE];
+        CHECK_RET(ckb_load_cell_by_field(
+            owner_lockhash, &len, 0, index, CKB_SOURCE_OUTPUT, CKB_CELL_FIELD_LOCK_HASH));
+        CHECK_RET(lua_inject_auth_context(L, owner_lockhash, "owner"));
         // load lua code
+        len = MAX_CACHE_SIZE;
         CHECK_RET(ckb_load_cell_data(cache, &len, 0, index, CKB_SOURCE_OUTPUT));
         // push lua code into lua_vm
         CHECK_RET(lua_load_project_code(L, cache, len, herr));
+        // load global json data
+        mol_seg_t global_json = {cache, MAX_CACHE_SIZE};
+        CHECK_RET(ckb_load_cell_data(
+            global_json.ptr, (uint64_t *)&global_json.size, 0, 0, CKB_SOURCE_GROUP_OUTPUT));
+        // load global driver lock_hash and inject into KOC context
+        uint8_t driver_lockhash[HASH_SIZE];
+        mol_seg_t global_driver = {driver_lockhash, HASH_SIZE};
+        CHECK_RET(ckb_load_cell_by_field(
+            global_driver.ptr, (uint64_t *)&global_driver.size, 0, 0, CKB_SOURCE_GROUP_OUTPUT, CKB_CELL_FIELD_LOCK_HASH));
+        CHECK_RET(lua_inject_auth_context(L, driver_lockhash, "driver"));
         // check global data format
-        len = MAX_CACHE_SIZE;
-        CHECK_RET(ckb_load_cell_data(cache, &len, 0, 0, CKB_SOURCE_GROUP_OUTPUT));
-        CHECK_RET(lua_check_global_data(L, "return construct()", cache, len, herr));
+        CHECK_RET(lua_check_global_data(L, "return construct()", global_driver, global_json, herr));
     }
     return CKB_SUCCESS;
 }
