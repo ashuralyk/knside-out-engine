@@ -27,7 +27,7 @@
 #define HALF_HASH_SIZE (HASH_SIZE / 2)
 #define CKB_ONE 100000000
 
-#define LUA_PREFIX "return "
+// #define LUA_PREFIX "return "
 #define LUA_UNCHECKED "__koc_unchecked"
 #define LUA_KOC "KOC"
 #define LUA_KOC_BACKUP "__koc_backup"
@@ -53,6 +53,7 @@ enum ERROR
     ERROR_LUA_INJECT,
     ERROR_LUA_SCRIPT_ARGS,
     ERROR_LUA_DEEP_COPY,
+    ERROR_LUA_COMPARE_TABLE,
     ERROR_GLOBAL_ARGS,
     ERROR_REQUEST_ARGS,
     ERROR_REQUEST_CALLER_HASH,

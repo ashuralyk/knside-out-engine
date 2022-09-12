@@ -20,15 +20,15 @@ function construct ()
 end
 
 function updateGlobal (key, value)
-    assert(KOC.sender == KOC.owner, "sender must be owner")
+    assert(KOC.user == KOC.owner, "sender must be owner")
     assert(KOC.global[key] ~= nil, "unsupported key " .. key)
     assert(not KOC.personal, "only accept no data request")
     KOC.global[key] = value
 end
 
 function transferDriver()
-    assert(KOC.sender == KOC.owner, "sender must be owner")
-    assert(KOC.sender ~= KOC.recipient, "recipient must be other one")
+    assert(KOC.user == KOC.owner, "sender must be owner")
+    assert(KOC.user ~= KOC.recipient, "recipient must be other one")
     assert(KOC.driver ~= KOC.recipient, "drvier must be different")
     KOC.driver = KOC.recipient
 end
@@ -46,6 +46,7 @@ function mint ()
             glossaries = {}
         }
     end
+    KOC.driver = KOC.recipient
 end
 
 function update (key, value)
@@ -68,5 +69,8 @@ function burn ()
 end
 
 function wrong_code ()
+    KOC.personal = {
+        token_id = 0
+    }
     assert(false, "it's wrong code")
 end

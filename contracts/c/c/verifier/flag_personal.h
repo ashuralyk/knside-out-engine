@@ -25,13 +25,12 @@ int _apply_request_args(void *args, size_t i, mol_seg_t lock_args, mol_seg_t dat
     lua_setglobal(L, LUA_KOC_BACKUP);
     lua_pop(L, 1);
     // fetch user request method function
-    uint8_t function_call[MAX_FUNCTION_CALL_SIZE] = LUA_PREFIX;
+    uint8_t function_call[MAX_FUNCTION_CALL_SIZE] = "";
     CHECK_RET(ckbx_flag2_load_function_call(
-        lock_args.ptr + 1, lock_args.size - 1,
-        function_call + strlen(LUA_PREFIX), MAX_FUNCTION_CALL_SIZE - strlen(LUA_PREFIX)));
+        lock_args.ptr + 1, lock_args.size - 1, function_call, MAX_FUNCTION_CALL_SIZE));
     ckb_debug((char *)function_call);
     // call method and complete unchecked
-    if (luaL_loadstring(L, (char *)function_call) || lua_pcall(L, 0, 1, herr))
+    if (luaL_loadstring(L, (char *)function_call) || lua_pcall(L, 0, 0, herr))
     {
         DEBUG_PRINT(
             "[ERROR] invalid request function call. (cell = %lu, payload = %s)", i, (char *)function_call);

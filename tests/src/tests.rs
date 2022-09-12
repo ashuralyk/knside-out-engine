@@ -238,7 +238,11 @@ fn test_success_update_personal_data() {
         user1_lock_script.as_slice(),
         None,
     );
-    let flag_2_2 = protocol::mol_flag_2("mint()", user2_lock_script.as_slice(), None);
+    let flag_2_2 = protocol::mol_flag_2(
+        "mint()",
+        user2_lock_script.as_slice(),
+        Some(user2_lock_script.as_slice()),
+    );
     let flag_2_3 = protocol::mol_flag_2("wrong_code()", user3_lock_script.as_slice(), None);
 
     // build inside-out type script and lock script
@@ -337,7 +341,7 @@ fn test_success_update_personal_data() {
         // next global data cell
         CellOutput::new_builder()
             .capacity(Capacity::bytes(1000).unwrap().pack())
-            .lock(always_success_lock_script)
+            .lock(user2_lock_script.clone())
             .type_(Some(contract_script).pack())
             .build(),
         // unlocked normal cell for request 1
