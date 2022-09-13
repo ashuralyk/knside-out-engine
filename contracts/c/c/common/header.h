@@ -31,6 +31,7 @@
 #define LUA_UNCHECKED "__koc_unchecked"
 #define LUA_KOC "KOC"
 #define LUA_KOC_BACKUP "__koc_backup"
+#define LUA_KOC_CHECKER "__koc_checker"
 
 enum FALG
 {

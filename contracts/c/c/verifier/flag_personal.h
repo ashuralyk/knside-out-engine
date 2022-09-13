@@ -1,9 +1,7 @@
 #ifndef CKB_FLAG_PERSONAL
 #define CKB_FLAG_PERSONAL
 
-#include "../common/header.h"
-#include "../common/lua_wrap.h"
-#include "../common/high_level.h"
+#include "../common/injection.h"
 
 int _apply_request_args(void *args, size_t i, mol_seg_t lock_args, mol_seg_t data, int herr)
 {
@@ -30,7 +28,8 @@ int _apply_request_args(void *args, size_t i, mol_seg_t lock_args, mol_seg_t dat
         lock_args.ptr + 1, lock_args.size - 1, function_call, MAX_FUNCTION_CALL_SIZE));
     ckb_debug((char *)function_call);
     // call method and complete unchecked
-    if (luaL_loadstring(L, (char *)function_call) || lua_pcall(L, 0, 0, herr))
+    lua_getglobal(L, LUA_KOC_CHECKER);
+    if (luaL_loadstring(L, (char *)function_call) || lua_pcall(L, 0, 0, herr) || lua_pcall(L, 0, 0, herr))
     {
         DEBUG_PRINT(
             "[ERROR] invalid request function call. (cell = %lu, payload = %s)", i, (char *)function_call);
@@ -72,55 +71,23 @@ int _apply_personal_data(void *L, size_t i, mol_seg_t user, mol_seg_t personal, 
     return CKB_SUCCESS;
 }
 
-int _check_parallel_capacity(lua_State *L, size_t source, const char *memo)
-{
-    uint64_t ckb = (size_t)(luaL_checknumber(L, -1) * CKB_ONE);
-    lua_getglobal(L, LUA_UNCHECKED);
-    size_t i = luaL_len(L, -1) + 1;
-    uint64_t offerred_ckb, occupied_ckb;
-    int ret = ckbx_get_parallel_cell_capacity(
-        source, false, source, true, i, &offerred_ckb, &occupied_ckb);
-    if (ret != CKB_SUCCESS)
-    {
-        lua_pushboolean(L, false);
-        return 1;
-    }
-    if (offerred_ckb < occupied_ckb + ckb)
-    {
-        DEBUG_PRINT(
-            "[ERROR] %s: need more %4.f ckb. (cell = %lu)",
-            memo, (occupied_ckb + ckb - offerred_ckb) / (double)CKB_ONE, i);
-        lua_pushboolean(L, false);
-        return 1;
-    }
-    lua_pushboolean(L, true);
-    return 1;
-}
-
-int _lua_ckb_withdraw(lua_State *L)
-{
-    return _check_parallel_capacity(L, CKB_SOURCE_OUTPUT, "withdraw");
-}
-
-int _lua_ckb_deposit(lua_State *L)
-{
-    return _check_parallel_capacity(L, CKB_SOURCE_INPUT, "deposit");
-}
-
 int inject_personal_operation(uint8_t *cache, lua_State *L, int herr)
 {
     int ret = CKB_SUCCESS;
     // inject unchecked global table
     lua_newtable(L);
     lua_setglobal(L, LUA_UNCHECKED);
+    // inject KOC checker global function
+    lua_pushcfunction(L, lua_check_koc);
+    lua_setglobal(L, LUA_KOC_CHECKER);
     // set random seed by transaction inputs
     uint64_t seed[2];
     CHECK_RET(ckbx_get_random_seeds(cache, MAX_CACHE_SIZE, (uint8_t *)seed));
     CHECK_RET(lua_inject_random_seeds(L, seed, herr));
     // add ckb_deposit method
     LuaOperation operations[] = {
-        {"ckb_deposit", _lua_ckb_deposit},
-        {"ckb_withdraw", _lua_ckb_withdraw}};
+        {"ckb_deposit", lua_ckb_deposit},
+        {"ckb_withdraw", lua_ckb_withdraw}};
     CHECK_RET(lua_inject_operation_context(L, operations, 1));
     return CKB_SUCCESS;
 }
