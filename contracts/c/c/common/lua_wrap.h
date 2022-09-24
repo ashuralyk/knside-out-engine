@@ -174,9 +174,7 @@ int lua_load_project_code(lua_State *L, uint8_t *code, size_t len, int herr)
 {
     if (luaL_loadbuffer(L, (const char *)code, len, "luavm") || lua_pcall(L, 0, 0, herr))
     {
-        char debug[256];
-        sprintf(debug, "invalid lua script, length = %lu", len);
-        ckb_debug(debug);
+        DEBUG_PRINT("invalid lua script, length = %lu", len);
         return ERROR_RUN_LUA_CODE;
     }
     return CKB_SUCCESS;

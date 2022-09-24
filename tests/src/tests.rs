@@ -334,6 +334,18 @@ fn test_success_update_personal_data() {
                 ),
             )
             .build(),
+        // normal change cell
+        CellInput::new_builder()
+            .previous_output(
+                context.create_cell(
+                    CellOutput::new_builder()
+                        .capacity(Capacity::bytes(1000).unwrap().pack())
+                        .lock(always_success_lock_script.clone())
+                        .build(),
+                    Bytes::new(),
+                ),
+            )
+            .build(),
     ];
 
     // build project outputs
@@ -362,6 +374,11 @@ fn test_success_update_personal_data() {
             .lock(user3_lock_script)
             // .type_(Some(personal_script).pack())
             .build(),
+        // normal change cell
+        CellOutput::new_builder()
+            .capacity(Capacity::bytes(900).unwrap().pack())
+            .lock(always_success_lock_script.clone())
+            .build(),
     ];
 
     // build project outputs data
@@ -371,6 +388,7 @@ fn test_success_update_personal_data() {
         Bytes::from_static(next_global.as_bytes()).pack(),
         Bytes::new().pack(),
         Bytes::from_static(next_personal.as_bytes()).pack(),
+        Bytes::new().pack(),
         Bytes::new().pack(),
     ];
 

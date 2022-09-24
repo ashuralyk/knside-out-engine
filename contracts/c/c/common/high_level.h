@@ -181,6 +181,12 @@ int ckbx_apply_personal_output_by_code_hash(
         // burned empty cell
         if (ret == CKB_ITEM_MISSING)
         {
+            // if change cell index = i, skip this check
+            ret = ckb_load_cell_by_field(NULL, &_len, 0, i, CKB_SOURCE_INPUT, CKB_CELL_FIELD_TYPE);
+            if (ret == CKB_ITEM_MISSING)
+            {
+                continue;
+            }
             _len = len;
             ckb_load_cell_data(cache, &_len, 0, i, CKB_SOURCE_OUTPUT);
             if (_len > 0)
