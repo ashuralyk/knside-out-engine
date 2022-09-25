@@ -88,7 +88,7 @@ int inject_personal_operation(uint8_t *cache, lua_State *L, int herr)
     LuaOperation operations[] = {
         {"ckb_deposit", lua_ckb_deposit},
         {"ckb_withdraw", lua_ckb_withdraw}};
-    CHECK_RET(lua_inject_operation_context(L, operations, 1));
+    CHECK_RET(lua_inject_operation_context(L, operations, 2));
     return CKB_SUCCESS;
 }
 
