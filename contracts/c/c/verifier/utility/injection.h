@@ -1,9 +1,9 @@
 #ifndef CKB_LUA_INJECTIONS
 #define CKB_LUA_INJECTIONS
 
-#include "header.h"
-#include "lua_wrap.h"
-#include "high_level.h"
+#include "../../common/header.h"
+#include "../../common/lua_wrap.h"
+#include "../../common/high_level.h"
 
 int _check_parallel_capacity(lua_State *L, size_t source, const char *memo)
 {

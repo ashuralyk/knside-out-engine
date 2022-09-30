@@ -18,7 +18,7 @@ int verify_request_data(uint8_t *cache, lua_State *L, int herr, mol_seg_t script
     ckb_load_script_hash(expected_hash, &len, 0);
     // find cell position in inputs
     size_t indices[MAX_SAME_REQUEST_COUNT];
-    CHECK_RET(ckbx_check_reqeust_hash_exist(CKB_SOURCE_INPUT, expected_hash, indices));
+    CHECK_RET(ckbx_check_request_hash_exist(CKB_SOURCE_INPUT, expected_hash, indices));
     uint8_t output_lockhash[HASH_SIZE];
     for (size_t i = 0; indices[i] > 0; ++i)
     {

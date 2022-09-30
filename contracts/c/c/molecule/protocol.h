@@ -61,6 +61,11 @@ extern "C" {
 #define                                 MolReader_String_raw_bytes(s)                   mol_fixvec_slice_raw_bytes(s)
 MOLECULE_API_DECORATOR  mol_errno       MolReader_StringOpt_verify                      (const mol_seg_t*, bool);
 #define                                 MolReader_StringOpt_is_none(s)                  mol_option_is_none(s)
+MOLECULE_API_DECORATOR  mol_errno       MolReader_StringVec_verify                      (const mol_seg_t*, bool);
+#define                                 MolReader_StringVec_length(s)                   mol_dynvec_length(s)
+#define                                 MolReader_StringVec_get(s, i)                   mol_dynvec_slice_by_index(s, i)
+MOLECULE_API_DECORATOR  mol_errno       MolReader_StringVecOpt_verify                   (const mol_seg_t*, bool);
+#define                                 MolReader_StringVecOpt_is_none(s)               mol_option_is_none(s)
 MOLECULE_API_DECORATOR  mol_errno       MolReader_Flag_0_verify                         (const mol_seg_t*, bool);
 #define                                 MolReader_Flag_0_actual_field_count(s)          mol_table_actual_field_count(s)
 #define                                 MolReader_Flag_0_has_extra_fields(s)            mol_table_has_extra_fields(s, 1)
@@ -71,10 +76,11 @@ MOLECULE_API_DECORATOR  mol_errno       MolReader_Flag_1_verify                 
 #define                                 MolReader_Flag_1_get_project_id(s)              mol_table_slice_by_index(s, 0)
 MOLECULE_API_DECORATOR  mol_errno       MolReader_Flag_2_verify                         (const mol_seg_t*, bool);
 #define                                 MolReader_Flag_2_actual_field_count(s)          mol_table_actual_field_count(s)
-#define                                 MolReader_Flag_2_has_extra_fields(s)            mol_table_has_extra_fields(s, 3)
+#define                                 MolReader_Flag_2_has_extra_fields(s)            mol_table_has_extra_fields(s, 4)
 #define                                 MolReader_Flag_2_get_function_call(s)           mol_table_slice_by_index(s, 0)
 #define                                 MolReader_Flag_2_get_caller_lockscript(s)       mol_table_slice_by_index(s, 1)
 #define                                 MolReader_Flag_2_get_recipient_lockscript(s)    mol_table_slice_by_index(s, 2)
+#define                                 MolReader_Flag_2_get_personal_celldeps(s)       mol_table_slice_by_index(s, 3)
 
 /*
  * Builder APIs
@@ -123,6 +129,14 @@ MOLECULE_API_DECORATOR  mol_errno       MolReader_Flag_2_verify                 
 #define                                 MolBuilder_StringOpt_set(b, p, l)               mol_option_builder_set(b, p, l)
 #define                                 MolBuilder_StringOpt_build(b)                   mol_builder_finalize_simple(b)
 #define                                 MolBuilder_StringOpt_clear(b)                   mol_builder_discard(b)
+#define                                 MolBuilder_StringVec_init(b)                    mol_builder_initialize_with_capacity(b, 64, 64)
+#define                                 MolBuilder_StringVec_push(b, p, l)              mol_dynvec_builder_push(b, p, l)
+#define                                 MolBuilder_StringVec_build(b)                   mol_dynvec_builder_finalize(b)
+#define                                 MolBuilder_StringVec_clear(b)                   mol_builder_discard(b)
+#define                                 MolBuilder_StringVecOpt_init(b)                 mol_builder_initialize_fixed_size(b, 0)
+#define                                 MolBuilder_StringVecOpt_set(b, p, l)            mol_option_builder_set(b, p, l)
+#define                                 MolBuilder_StringVecOpt_build(b)                mol_builder_finalize_simple(b)
+#define                                 MolBuilder_StringVecOpt_clear(b)                mol_builder_discard(b)
 #define                                 MolBuilder_Flag_0_init(b)                       mol_table_builder_initialize(b, 256, 1)
 #define                                 MolBuilder_Flag_0_set_project_id(b, p, l)       mol_table_builder_add(b, 0, p, l)
 MOLECULE_API_DECORATOR  mol_seg_res_t   MolBuilder_Flag_0_build                         (mol_builder_t);
@@ -131,10 +145,11 @@ MOLECULE_API_DECORATOR  mol_seg_res_t   MolBuilder_Flag_0_build                 
 #define                                 MolBuilder_Flag_1_set_project_id(b, p, l)       mol_table_builder_add(b, 0, p, l)
 MOLECULE_API_DECORATOR  mol_seg_res_t   MolBuilder_Flag_1_build                         (mol_builder_t);
 #define                                 MolBuilder_Flag_1_clear(b)                      mol_builder_discard(b)
-#define                                 MolBuilder_Flag_2_init(b)                       mol_table_builder_initialize(b, 128, 3)
+#define                                 MolBuilder_Flag_2_init(b)                       mol_table_builder_initialize(b, 128, 4)
 #define                                 MolBuilder_Flag_2_set_function_call(b, p, l)    mol_table_builder_add(b, 0, p, l)
 #define                                 MolBuilder_Flag_2_set_caller_lockscript(b, p, l) mol_table_builder_add(b, 1, p, l)
 #define                                 MolBuilder_Flag_2_set_recipient_lockscript(b, p, l) mol_table_builder_add(b, 2, p, l)
+#define                                 MolBuilder_Flag_2_set_personal_celldeps(b, p, l) mol_table_builder_add(b, 3, p, l)
 MOLECULE_API_DECORATOR  mol_seg_res_t   MolBuilder_Flag_2_build                         (mol_builder_t);
 #define                                 MolBuilder_Flag_2_clear(b)                      mol_builder_discard(b)
 
@@ -151,6 +166,8 @@ MOLECULE_API_DECORATOR const uint8_t MolDefault_Hash[32]         =  {
 };
 MOLECULE_API_DECORATOR const uint8_t MolDefault_String[4]        =  {____, ____, ____, ____};
 MOLECULE_API_DECORATOR const uint8_t MolDefault_StringOpt[0]     =  {};
+MOLECULE_API_DECORATOR const uint8_t MolDefault_StringVec[4]     =  {0x04, ____, ____, ____};
+MOLECULE_API_DECORATOR const uint8_t MolDefault_StringVecOpt[0]  =  {};
 MOLECULE_API_DECORATOR const uint8_t MolDefault_Flag_0[40]       =  {
     0x28, ____, ____, ____, 0x08, ____, ____, ____, ____, ____, ____, ____,
     ____, ____, ____, ____, ____, ____, ____, ____, ____, ____, ____, ____,
@@ -163,9 +180,10 @@ MOLECULE_API_DECORATOR const uint8_t MolDefault_Flag_1[40]       =  {
     ____, ____, ____, ____, ____, ____, ____, ____, ____, ____, ____, ____,
     ____, ____, ____, ____,
 };
-MOLECULE_API_DECORATOR const uint8_t MolDefault_Flag_2[24]       =  {
-    0x18, ____, ____, ____, 0x10, ____, ____, ____, 0x14, ____, ____, ____,
-    0x18, ____, ____, ____, ____, ____, ____, ____, ____, ____, ____, ____,
+MOLECULE_API_DECORATOR const uint8_t MolDefault_Flag_2[28]       =  {
+    0x1c, ____, ____, ____, 0x14, ____, ____, ____, 0x18, ____, ____, ____,
+    0x1c, ____, ____, ____, 0x1c, ____, ____, ____, ____, ____, ____, ____,
+    ____, ____, ____, ____,
 };
 
 #undef ____
@@ -177,6 +195,61 @@ MOLECULE_API_DECORATOR const uint8_t MolDefault_Flag_2[24]       =  {
 MOLECULE_API_DECORATOR mol_errno MolReader_StringOpt_verify (const mol_seg_t *input, bool compatible) {
     if (input->size != 0) {
         return MolReader_String_verify(input, compatible);
+    } else {
+        return MOL_OK;
+    }
+}
+MOLECULE_API_DECORATOR mol_errno MolReader_StringVec_verify (const mol_seg_t *input, bool compatible) {
+    if (input->size < MOL_NUM_T_SIZE) {
+        return MOL_ERR_HEADER;
+    }
+    uint8_t *ptr = input->ptr;
+    mol_num_t total_size = mol_unpack_number(ptr);
+    if (input->size != total_size) {
+        return MOL_ERR_TOTAL_SIZE;
+    }
+    if (input->size == MOL_NUM_T_SIZE) {
+        return MOL_OK;
+    }
+    if (input->size < MOL_NUM_T_SIZE * 2) {
+        return MOL_ERR_HEADER;
+    }
+    ptr += MOL_NUM_T_SIZE;
+    mol_num_t offset = mol_unpack_number(ptr);
+    if (offset % 4 > 0 || offset < MOL_NUM_T_SIZE*2) {
+        return MOL_ERR_OFFSET;
+    }
+    mol_num_t item_count = offset / 4 - 1;
+    if (input->size < MOL_NUM_T_SIZE*(item_count+1)) {
+        return MOL_ERR_HEADER;
+    }
+    mol_num_t end;
+    for (mol_num_t i=1; i<item_count; i++) {
+        ptr += MOL_NUM_T_SIZE;
+        end = mol_unpack_number(ptr);
+        if (offset > end) {
+            return MOL_ERR_OFFSET;
+        }
+        mol_seg_t inner;
+        inner.ptr = input->ptr + offset;
+        inner.size = end - offset;
+        mol_errno errno = MolReader_String_verify(&inner, compatible);
+        if (errno != MOL_OK) {
+            return MOL_ERR_DATA;
+        }
+        offset = end;
+    }
+    if (offset > total_size) {
+        return MOL_ERR_OFFSET;
+    }
+    mol_seg_t inner;
+    inner.ptr = input->ptr + offset;
+    inner.size = total_size - offset;
+    return MolReader_String_verify(&inner, compatible);
+}
+MOLECULE_API_DECORATOR mol_errno MolReader_StringVecOpt_verify (const mol_seg_t *input, bool compatible) {
+    if (input->size != 0) {
+        return MolReader_StringVec_verify(input, compatible);
     } else {
         return MOL_OK;
     }
@@ -297,9 +370,9 @@ MOLECULE_API_DECORATOR mol_errno MolReader_Flag_2_verify (const mol_seg_t *input
         return MOL_ERR_OFFSET;
     }
     mol_num_t field_count = offset / 4 - 1;
-    if (field_count < 3) {
+    if (field_count < 4) {
         return MOL_ERR_FIELD_COUNT;
-    } else if (!compatible && field_count > 3) {
+    } else if (!compatible && field_count > 4) {
         return MOL_ERR_FIELD_COUNT;
     }
     if (input->size < MOL_NUM_T_SIZE*(field_count+1)){
@@ -335,6 +408,12 @@ MOLECULE_API_DECORATOR mol_errno MolReader_Flag_2_verify (const mol_seg_t *input
         inner.ptr = input->ptr + offsets[2];
         inner.size = offsets[3] - offsets[2];
         errno = MolReader_StringOpt_verify(&inner, compatible);
+        if (errno != MOL_OK) {
+            return MOL_ERR_DATA;
+        }
+        inner.ptr = input->ptr + offsets[3];
+        inner.size = offsets[4] - offsets[3];
+        errno = MolReader_StringVecOpt_verify(&inner, compatible);
         if (errno != MOL_OK) {
             return MOL_ERR_DATA;
         }
@@ -406,7 +485,7 @@ MOLECULE_API_DECORATOR mol_seg_res_t MolBuilder_Flag_1_build (mol_builder_t buil
 MOLECULE_API_DECORATOR mol_seg_res_t MolBuilder_Flag_2_build (mol_builder_t builder) {
     mol_seg_res_t res;
     res.errno = MOL_OK;
-    mol_num_t offset = 16;
+    mol_num_t offset = 20;
     mol_num_t len;
     res.seg.size = offset;
     len = builder.number_ptr[1];
@@ -414,6 +493,8 @@ MOLECULE_API_DECORATOR mol_seg_res_t MolBuilder_Flag_2_build (mol_builder_t buil
     len = builder.number_ptr[3];
     res.seg.size += len == 0 ? 4 : len;
     len = builder.number_ptr[5];
+    res.seg.size += len == 0 ? 0 : len;
+    len = builder.number_ptr[7];
     res.seg.size += len == 0 ? 0 : len;
     res.seg.ptr = (uint8_t*)malloc(res.seg.size);
     uint8_t *dst = res.seg.ptr;
@@ -430,6 +511,10 @@ MOLECULE_API_DECORATOR mol_seg_res_t MolBuilder_Flag_2_build (mol_builder_t buil
     mol_pack_number(dst, &offset);
     dst += MOL_NUM_T_SIZE;
     len = builder.number_ptr[5];
+    offset += len == 0 ? 0 : len;
+    mol_pack_number(dst, &offset);
+    dst += MOL_NUM_T_SIZE;
+    len = builder.number_ptr[7];
     offset += len == 0 ? 0 : len;
     uint8_t *src = builder.data_ptr;
     len = builder.number_ptr[1];
@@ -456,6 +541,15 @@ MOLECULE_API_DECORATOR mol_seg_res_t MolBuilder_Flag_2_build (mol_builder_t buil
         memcpy(dst, &MolDefault_StringOpt, len);
     } else {
         mol_num_t of = builder.number_ptr[4];
+        memcpy(dst, src+of, len);
+    }
+    dst += len;
+    len = builder.number_ptr[7];
+    if (len == 0) {
+        len = 0;
+        memcpy(dst, &MolDefault_StringVecOpt, len);
+    } else {
+        mol_num_t of = builder.number_ptr[6];
         memcpy(dst, src+of, len);
     }
     dst += len;

@@ -11,6 +11,13 @@ typedef struct
     LuaFunc callback;
 } LuaOperation;
 
+typedef struct
+{
+    lua_State *L;
+    uint8_t *project_id;
+    uint8_t *code_hash;
+} LuaParams;
+
 void _to_hex(char *hex, uint8_t *bytes, int size)
 {
     int pointer = 0;
@@ -82,6 +89,13 @@ void _print_table(lua_State *L, int tbl_index, char *prefix, int prefix_len)
         }
         lua_pop(L, 2);
     }
+}
+
+void lua_pushhexstrng(lua_State *L, uint8_t *hex_string, size_t len)
+{
+    char hex[len * 2];
+    _to_hex(hex, hex_string, len);
+    lua_pushlstring(L, hex, len * 2);
 }
 
 int lua_println(lua_State *L)
@@ -204,6 +218,36 @@ int lua_inject_json_context(lua_State *L, uint8_t *json_data, size_t len, const 
     return CKB_SUCCESS;
 }
 
+int lua_inject_stringvec_json_context(lua_State *L, mol_seg_t stringvec_seg, const char *name)
+{
+    // check `KOC` or make new one
+    lua_getglobal(L, LUA_KOC);
+    if (!lua_istable(L, -1))
+    {
+        lua_newtable(L);
+    }
+    // create Personals table
+    lua_newtable(L);
+    if (MolReader_StringVec_verify(&stringvec_seg, false))
+    {
+        int ret = CKB_SUCCESS;
+        size_t count = MolReader_StringVec_length(&stringvec_seg);
+        lua_newtable(L);
+        for (size_t i = 0; i < count; ++i)
+        {
+            mol_seg_t string_seg = MolReader_StringVec_get(&stringvec_seg, i).seg;
+            mol_seg_t string_bytes_seg = MolReader_String_raw_bytes(&string_seg);
+            CHECK_RET(_json_to_table(
+                L, (char *)string_bytes_seg.ptr, string_bytes_seg.size, NULL));
+            lua_rawseti(L, -2, i);
+        }
+    }
+    lua_setfield(L, -2, name);
+    // setup `KOC`
+    lua_setglobal(L, LUA_KOC);
+    return CKB_SUCCESS;
+}
+
 int lua_inject_auth_context(lua_State *L, uint8_t auth_hash[HASH_SIZE], const char *name)
 {
     // check `KOC` or make new one
@@ -213,9 +257,7 @@ int lua_inject_auth_context(lua_State *L, uint8_t auth_hash[HASH_SIZE], const ch
         lua_newtable(L);
     }
     // push lock hash
-    char hex[HASH_HEX_SIZE];
-    _to_hex(hex, auth_hash, HASH_SIZE);
-    lua_pushlstring(L, hex, HASH_HEX_SIZE);
+    lua_pushhexstrng(L, auth_hash, HASH_SIZE);
     lua_setfield(L, -2, name);
     // reset `KOC`
     lua_setglobal(L, LUA_KOC);
@@ -272,9 +314,7 @@ int lua_check_global_data(lua_State *L, const char *method, mol_seg_t driver, mo
     // load second table parameter
     lua_newtable(L);
     // fill `driver` object
-    char hex[driver.size * 2];
-    _to_hex(hex, driver.ptr, driver.size);
-    lua_pushlstring(L, hex, driver.size * 2);
+    lua_pushhexstrng(L, driver.ptr, driver.size);
     lua_setfield(L, -2, "driver");
     // fill `global` object
     int ret = CKB_SUCCESS;
@@ -306,9 +346,7 @@ int lua_check_personal_data(lua_State *L, const char *method, mol_seg_t owner, m
     // create data table for comparision
     lua_newtable(L);
     // file `user` object
-    char hex[owner.size * 2];
-    _to_hex(hex, owner.ptr, owner.size);
-    lua_pushlstring(L, hex, owner.size * 2);
+    lua_pushhexstrng(L, owner.ptr, owner.size);
     lua_setfield(L, -2, "user");
     // file `personal` object
     if (personal.ptr != NULL)
@@ -335,7 +373,7 @@ int lua_check_personal_data(lua_State *L, const char *method, mol_seg_t owner, m
     return CKB_SUCCESS;
 }
 
-int lua_copy_partial_table(lua_State *L, const char *keys[], size_t len)
+int lua_flatten_copy_table(lua_State *L, const char *keys[], size_t len)
 {
     if (!lua_istable(L, -1))
     {
@@ -348,7 +386,13 @@ int lua_copy_partial_table(lua_State *L, const char *keys[], size_t len)
     {
         lua_pushstring(L, keys[i]);
         lua_gettable(L, real_i);
-        lua_setfield(L, copy_i, keys[i]);
+        if (lua_istable(L, -1))
+        {
+        }
+        else
+        {
+            lua_setfield(L, copy_i, keys[i]);
+        }
     }
     return CKB_SUCCESS;
 }
