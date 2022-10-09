@@ -3,6 +3,7 @@
 
 #include "header.h"
 #include "blake2b.h"
+#include "../molecule/protocol.h"
 
 typedef int (*ApplyFunc)(void *, size_t, mol_seg_t, mol_seg_t, mol_seg_t, int);
 
@@ -53,81 +54,92 @@ int ckbx_flag1_load_project_id(uint8_t *cache, size_t len, uint8_t project_id[HA
     return CKB_SUCCESS;
 }
 
-int ckbx_flag2_load_function_call(uint8_t *cache, size_t len, uint8_t *function_call, size_t size)
+int ckbx_flag2_load_project_id(uint8_t *cache, size_t len, uint8_t project_id[HASH_SIZE])
 {
-    mol_seg_t flag2_seg = {cache, len};
-    if (MolReader_Flag_2_verify(&flag2_seg, false) != MOL_OK)
+    mol_seg_t flag1_seg = {cache, len};
+    if (MolReader_Flag_2_verify(&flag1_seg, false) != MOL_OK)
     {
-        return ERROR_FLAG_2_BYTES;
+        return ERROR_FLAG_1_BYTES;
     }
-    mol_seg_t function_call_seg = MolReader_Flag_2_get_function_call(&flag2_seg);
+    mol_seg_t project_id_seg = MolReader_Flag_2_get_project_id(&flag1_seg);
+    memcpy(project_id, project_id_seg.ptr, project_id_seg.size);
+    return CKB_SUCCESS;
+}
+
+int ckbx_request_load_function_call(uint8_t *cache, size_t len, uint8_t *function_call, size_t size)
+{
+    mol_seg_t request_seg = {cache, len};
+    if (MolReader_Request_verify(&request_seg, false) != MOL_OK)
+    {
+        return ERROR_REQUEST_BYTES;
+    }
+    mol_seg_t function_call_seg = MolReader_Request_get_function_call(&request_seg);
     mol_seg_t function_call_bytes_seg = MolReader_String_raw_bytes(&function_call_seg);
     if (function_call_bytes_seg.size > size)
     {
-        return ERROR_FLAG_2_BYTES;
+        return ERROR_REQUEST_BYTES;
     }
     memcpy(function_call, function_call_bytes_seg.ptr, function_call_bytes_seg.size);
     return CKB_SUCCESS;
 }
 
-int ckbx_flag2_load_caller_lockhash(uint8_t *cache, size_t len, uint8_t lock_hash[HASH_SIZE])
+int ckbx_request_load_cells(uint8_t *cache, size_t len, mol_seg_t *cells_seg)
 {
-    mol_seg_t flag2_seg = {cache, len};
-    if (MolReader_Flag_2_verify(&flag2_seg, false) != MOL_OK)
+    mol_seg_t request_seg = {cache, len};
+    if (MolReader_Request_verify(&request_seg, false) != MOL_OK)
     {
-        return ERROR_FLAG_2_BYTES;
+        return ERROR_REQUEST_BYTES;
     }
-    mol_seg_t caller_lockscript_seg = MolReader_Flag_2_get_caller_lockscript(&flag2_seg);
-    mol_seg_t caller_lockscript_bytes_seg = MolReader_String_raw_bytes(&caller_lockscript_seg);
-    blake2b(
-        lock_hash, HASH_SIZE, caller_lockscript_bytes_seg.ptr, caller_lockscript_bytes_seg.size,
-        NULL, 0);
+    *cells_seg = MolReader_Request_get_cells(&request_seg);
     return CKB_SUCCESS;
 }
 
-int ckbx_flag2_load_recipient_lockhash(uint8_t *cache, size_t len, uint8_t lock_hash[HASH_SIZE])
+int ckbx_request_load_floating_lockhashes(
+    uint8_t *cache, size_t len, uint8_t lock_hashes[HASH_SIZE][MAX_FLOATING_COUNT], size_t *count)
 {
-    mol_seg_t flag2_seg = {cache, len};
-    if (MolReader_Flag_2_verify(&flag2_seg, false) != MOL_OK)
+    mol_seg_t request_seg = {cache, len};
+    if (MolReader_Request_verify(&request_seg, false) != MOL_OK)
     {
-        return ERROR_FLAG_2_BYTES;
+        return ERROR_REQUEST_BYTES;
     }
-    mol_seg_t owner_lockscript_seg = MolReader_Flag_2_get_recipient_lockscript(&flag2_seg);
-    if (!MolReader_StringOpt_is_none(&owner_lockscript_seg))
+    mol_seg_t floating_lockscript_seg = MolReader_Request_get_floating_lockscripts(&request_seg);
+    *count = MolReader_StringVec_length(&floating_lockscript_seg);
+    if (*count > MAX_FLOATING_COUNT)
     {
-        mol_seg_t owner_lockscript_bytes_seg = MolReader_String_raw_bytes(&owner_lockscript_seg);
+        return ERROR_FLOATING_LOCKSCRIPT_EXCESSIVE;
+    }
+    for (size_t i = 0; i < *count; ++i)
+    {
+        mol_seg_t floating_lockscript_seg = MolReader_StringVec_get(&floating_lockscript_seg, i).seg;
+        mol_seg_t floating_lockscript_bytes_seg = MolReader_String_raw_bytes(&floating_lockscript_seg);
         blake2b(
-            lock_hash, HASH_SIZE, owner_lockscript_bytes_seg.ptr, owner_lockscript_bytes_seg.size,
+            lock_hashes[i], HASH_SIZE, floating_lockscript_bytes_seg.ptr, floating_lockscript_bytes_seg.size,
             NULL, 0);
     }
     return CKB_SUCCESS;
 }
 
-int ckbx_flag2_load_personal_celldep_lockhashes(
-    uint8_t *cache, size_t len, uint8_t lock_hashes[HASH_SIZE][MAX_PERSONAL_DEP_COUNT], size_t *count)
+int ckbx_request_load_function_celldeps_lockhash(
+    uint8_t *cache, size_t len, uint8_t lock_hashes[HASH_SIZE][MAX_CELLDEP_COUNT], size_t *count)
 {
-    mol_seg_t flag2_seg = {cache, len};
-    if (MolReader_Flag_2_verify(&flag2_seg, false) != MOL_OK)
+    mol_seg_t request_seg = {cache, len};
+    if (MolReader_Request_verify(&request_seg, false) != MOL_OK)
     {
-        return ERROR_FLAG_2_BYTES;
+        return ERROR_REQUEST_BYTES;
     }
-    mol_seg_t personal_celldeps_seg = MolReader_Flag_2_get_personal_celldeps(&flag2_seg);
-    *count = 0;
-    if (!MolReader_StringVecOpt_is_none(&personal_celldeps_seg))
+    mol_seg_t function_celldeps_seg = MolReader_Request_get_function_celldeps(&request_seg);
+    *count = MolReader_StringVec_length(&function_celldeps_seg);
+    if (*count > MAX_CELLDEP_COUNT)
     {
-        *count = MolReader_StringVec_length(&personal_celldeps_seg);
-        if (*count > MAX_PERSONAL_DEP_COUNT)
-        {
-            return ERROR_PERSONAL_CELLDEP_EXCESSIVE;
-        }
-        for (size_t i = 0; i < *count; ++i)
-        {
-            mol_seg_t personal_celldep_seg = MolReader_StringVec_get(&personal_celldeps_seg, i).seg;
-            mol_seg_t personal_celldep_bytes_seg = MolReader_String_raw_bytes(&personal_celldep_seg);
-            blake2b(
-                lock_hashes[i], HASH_SIZE, personal_celldep_bytes_seg.ptr, personal_celldep_bytes_seg.size,
-                NULL, 0);
-        }
+        return ERROR_FUNCTION_CELLDEP_EXCESSIVE;
+    }
+    for (size_t i = 0; i < *count; ++i)
+    {
+        mol_seg_t function_celldep_seg = MolReader_StringVec_get(&function_celldeps_seg, i).seg;
+        mol_seg_t function_celldep_bytes_seg = MolReader_String_raw_bytes(&function_celldep_seg);
+        blake2b(
+            lock_hashes[i], HASH_SIZE, function_celldep_bytes_seg.ptr, function_celldep_bytes_seg.size,
+            NULL, 0);
     }
     return CKB_SUCCESS;
 }
@@ -276,7 +288,10 @@ int ckbx_check_project_exist(size_t source, uint8_t expected_hash[HASH_SIZE], si
             ckb_load_cell_by_field(type_hash, &len, 0, i, source, CKB_CELL_FIELD_TYPE_HASH);
         if (ret == CKB_INDEX_OUT_OF_BOUND)
         {
-            which ? *which = -1 : NULL;
+            if (which)
+            {
+                *which = -1;
+            }
             break;
         }
         else if (ret == CKB_ITEM_MISSING)
@@ -289,14 +304,19 @@ int ckbx_check_project_exist(size_t source, uint8_t expected_hash[HASH_SIZE], si
         }
         if (memcmp(type_hash, expected_hash, HASH_SIZE) == 0)
         {
-            which ? *which = i : NULL;
+            if (which)
+            {
+                *which = i;
+            }
             break;
         }
     }
     return CKB_SUCCESS;
 }
 
-int ckbx_check_request_exist(uint8_t *cache, size_t len, size_t source, size_t i, mol_seg_t *request_seg)
+int ckbx_check_request_exist(
+    uint8_t *cache, size_t len, size_t source, size_t i, uint8_t expected_project_id[HASH_SIZE],
+    mol_seg_t *output_request_seg)
 {
     int ret = ckb_load_cell_by_field(cache, &len, 0, i, source, CKB_CELL_FIELD_LOCK);
     if (ret != CKB_SUCCESS || len > MAX_CACHE_SIZE)
@@ -310,9 +330,52 @@ int ckbx_check_request_exist(uint8_t *cache, size_t len, size_t source, size_t i
     {
         return ERROR_REQUEST_ARGS;
     }
-    if (request_seg)
+    uint8_t project_id[HASH_SIZE];
+    CHECK_RET(ckbx_flag2_load_project_id(
+        script_args_bytes_seg.ptr + 1, script_args_bytes_seg.size - 1, project_id));
+    if (memcmp(expected_project_id, project_id, HASH_SIZE))
     {
-        *request_seg = script_args_bytes_seg;
+        return ERROR_REQUEST_ARGS;
+    }
+    if (output_request_seg)
+    {
+        len = MAX_CACHE_SIZE;
+        ret = ckb_load_cell_data(cache, &len, 0, i, source);
+        if (ret != CKB_SUCCESS || len > MAX_CACHE_SIZE)
+        {
+            return ERROR_REQUEST_ARGS;
+        }
+        mol_seg_t request_seg = {cache, len};
+        *output_request_seg = request_seg;
+    }
+    return CKB_SUCCESS;
+}
+
+int ckbx_check_personal_exist(
+    uint8_t *cache, size_t len, size_t source, size_t i, uint8_t expected_project_id[HASH_SIZE])
+{
+    int ret = ckb_load_cell_by_field(cache, &len, 0, i, source, CKB_CELL_FIELD_TYPE);
+    if (ret == CKB_INDEX_OUT_OF_BOUND)
+    {
+        return CKB_SUCCESS;
+    }
+    if (ret != CKB_SUCCESS || len > MAX_CACHE_SIZE)
+    {
+        return ERROR_LOADING_PERSONAL_CELL;
+    }
+    mol_seg_t script_seg = {cache, len};
+    mol_seg_t script_args_seg = MolReader_Script_get_args(&script_seg);
+    mol_seg_t script_args_bytes_seg = MolReader_Bytes_raw_bytes(&script_args_seg);
+    if (script_args_bytes_seg.size < 1 || script_args_bytes_seg.ptr[0] != FLAG_PERSONAL)
+    {
+        return ERROR_PERSONAL_ARGS;
+    }
+    uint8_t project_id[HASH_SIZE];
+    CHECK_RET(ckbx_flag1_load_project_id(
+        script_args_bytes_seg.ptr + 1, script_args_bytes_seg.size - 1, project_id));
+    if (memcmp(expected_project_id, project_id, HASH_SIZE))
+    {
+        return ERROR_PERSONAL_ARGS;
     }
     return CKB_SUCCESS;
 }
@@ -364,70 +427,89 @@ int ckbx_check_global_exist(
     return CKB_SUCCESS;
 }
 
-int ckbx_check_request_hash_exist(
-    size_t source, uint8_t expected_hash[HASH_SIZE], size_t indices[MAX_SAME_REQUEST_COUNT])
-{
-    uint8_t lock_hash[HASH_SIZE];
-    uint64_t len = HASH_SIZE;
-    // valid offset of request lock_hash starts from 1, so fully ZERO means NOT-FOUND for indices
-    memset(indices, 0, sizeof(size_t) * MAX_SAME_REQUEST_COUNT);
-    size_t j = 0;
-    for (size_t i = 1; true; ++i)
-    {
-        int ret = ckb_load_cell_by_field(lock_hash, &len, 0, i, source, CKB_CELL_FIELD_LOCK_HASH);
-        if (ret == CKB_INDEX_OUT_OF_BOUND)
-        {
-            break;
-        }
-        if (ret != CKB_SUCCESS)
-        {
-            return ERROR_LOADING_SCRIPT;
-        }
-        if (memcmp(lock_hash, expected_hash, HASH_SIZE) == 0)
-        {
-            if (j >= MAX_SAME_REQUEST_COUNT)
-            {
-                return ERROR_REQUEST_EXCESSIVE;
-            }
-            indices[j++] = i;
-        }
-    }
-    size_t empty[MAX_SAME_REQUEST_COUNT] = {0};
-    if (memcmp(indices, empty, sizeof(empty)) == 0)
-    {
-        return ERROR_REQUEST_NOT_FOUND;
-    }
-    return CKB_SUCCESS;
-}
+// int ckbx_check_request_hash_exist(
+//     size_t source, uint8_t expected_hash[HASH_SIZE], size_t indices[MAX_SAME_REQUEST_COUNT])
+// {
+//     uint8_t lock_hash[HASH_SIZE];
+//     uint64_t len = HASH_SIZE;
+//     // valid offset of request lock_hash starts from 1, so fully ZERO means NOT-FOUND for indices
+//     memset(indices, 0, sizeof(size_t) * MAX_SAME_REQUEST_COUNT);
+//     size_t j = 0;
+//     for (size_t i = 1; true; ++i)
+//     {
+//         int ret = ckb_load_cell_by_field(lock_hash, &len, 0, i, source, CKB_CELL_FIELD_LOCK_HASH);
+//         if (ret == CKB_INDEX_OUT_OF_BOUND)
+//         {
+//             break;
+//         }
+//         if (ret != CKB_SUCCESS)
+//         {
+//             return ERROR_LOADING_SCRIPT;
+//         }
+//         if (memcmp(lock_hash, expected_hash, HASH_SIZE) == 0)
+//         {
+//             if (j >= MAX_SAME_REQUEST_COUNT)
+//             {
+//                 return ERROR_REQUEST_EXCESSIVE;
+//             }
+//             indices[j++] = i;
+//         }
+//     }
+//     size_t empty[MAX_SAME_REQUEST_COUNT] = {0};
+//     if (memcmp(indices, empty, sizeof(empty)) == 0)
+//     {
+//         return ERROR_REQUEST_NOT_FOUND;
+//     }
+//     return CKB_SUCCESS;
+// }
 
-int ckbx_check_request_data_validation(uint8_t *cache, size_t len, mol_seg_t request_data_seg)
+int ckbx_check_request_cells_validation(uint8_t *cache, size_t len, mol_seg_t cells_seg)
 {
-    if (!MolReader_StringVec_verify(&request_data_seg, false))
+    if (!MolReader_CellVec_verify(&cells_seg, false))
     {
-        return ERROR_REQUEST_DATA_FORMAT;
+        return ERROR_REQUEST_CELLS_FORMAT;
     }
-    size_t count = MolReader_StringVec_length(&request_data_seg);
+    size_t count = MolReader_CellVec_length(&cells_seg);
     for (size_t i = 0; i < count; ++i)
     {
+        mol_seg_t cell_seg = MolReader_CellVec_get(&cells_seg, i).seg;
+        mol_seg_t owner_lockscript_seg = MolReader_Cell_get_owner_lockscript(&cell_seg);
+        mol_seg_t owner_lockscript_bytes_seg = MolReader_String_raw_bytes(&owner_lockscript_seg);
         size_t _len = len;
-        int ret = ckb_load_cell_data(cache, &_len, 0, i, CKB_SOURCE_INPUT);
-        if (ret != CKB_SUCCESS)
+        int ret = ckb_load_cell_by_field(cache, &_len, 0, i, CKB_SOURCE_INPUT, CKB_CELL_FIELD_LOCK);
+        if (ret != CKB_SUCCESS ||
+            _len != owner_lockscript_bytes_seg.size ||
+            memcmp(cache, owner_lockscript_bytes_seg.ptr, _len))
         {
-            return ERROR_REQUEST_MATCH_INPUT_CELLS;
+            return ERROR_REQUEST_CELLS_LOCKSCRIPT;
         }
-        mol_seg_t data_seg = MolReader_StringVec_get(&request_data_seg, i).seg;
-        mol_seg_t data_bytes_seg = MolReader_String_raw_bytes(&data_seg);
-        if (_len != data_bytes_seg.size || memcmp(cache, data_bytes_seg.ptr, _len))
+        mol_seg_t data_seg = MolReader_Cell_get_data(&cell_seg);
+        _len = len;
+        ret = ckb_load_cell_data(cache, &_len, 0, i, CKB_SOURCE_INPUT);
+        if (MolReader_StringOpt_is_none(&data_seg))
         {
-            return ERROR_REQUEST_MATCH_INPUT_CELLS;
+            if (ret != CKB_SUCCESS || _len != 0)
+            {
+                return ERROR_REQUEST_CELLS_DATA;
+            }
+        }
+        else
+        {
+            mol_seg_t data_bytes_seg = MolReader_String_raw_bytes(&data_seg);
+            if (ret != CKB_SUCCESS ||
+                _len != data_bytes_seg.size ||
+                memcmp(cache, data_bytes_seg.ptr, _len))
+            {
+                return ERROR_REQUEST_CELLS_DATA;
+            }
         }
     }
     return CKB_SUCCESS;
 }
 
-int ckbx_check_personal_celldep_exist(
+int ckbx_check_function_celldep_exist(
     uint8_t *cache, size_t len, uint8_t expected_code_hash[HASH_SIZE],
-    uint8_t expected_project_id[HASH_SIZE], uint8_t expected_personal_lockhash[HASH_SIZE],
+    uint8_t expected_project_id[HASH_SIZE], uint8_t expected_celldep_lockhash[HASH_SIZE],
     mol_seg_t *celldep_data)
 {
     uint8_t project_id[HASH_SIZE];
@@ -436,46 +518,46 @@ int ckbx_check_personal_celldep_exist(
         // check if lock_script hash is expected personal_lockhash
         size_t _len = len;
         int ret = ckb_load_cell_by_field(cache, &_len, 0, i, CKB_SOURCE_CELL_DEP, CKB_CELL_FIELD_LOCK_HASH);
-        if (ret != CKB_SUCCESS)
+        if (ret != CKB_SUCCESS || _len > len)
         {
-            return ERROR_MISS_PERSONAL_CELLDEP;
+            return ERROR_MISS_FUNCTION_CELLDEP;
         }
-        if (memcmp(cache, expected_personal_lockhash, HASH_SIZE))
+        if (memcmp(cache, expected_celldep_lockhash, HASH_SIZE))
         {
             continue;
         }
         // check if type_script matches code_hash and project_id
         _len = len;
         ret = ckb_load_cell_by_field(cache, &_len, 0, i, CKB_SOURCE_CELL_DEP, CKB_CELL_FIELD_TYPE);
-        if (ret != CKB_SUCCESS)
+        if (ret != CKB_SUCCESS || _len > len)
         {
-            return ERROR_MISS_PERSONAL_CELLDEP;
+            return ERROR_MISS_FUNCTION_CELLDEP;
         }
         mol_seg_t script_seg = {cache, _len};
         mol_seg_t code_hash_seg = MolReader_Script_get_code_hash(&script_seg);
         if (memcmp(expected_code_hash, code_hash_seg.ptr, HASH_SIZE))
         {
-            return ERROR_MISS_PERSONAL_CELLDEP;
+            return ERROR_MISS_FUNCTION_CELLDEP;
         }
         mol_seg_t script_args_seg = MolReader_Script_get_args(&script_seg);
         mol_seg_t script_args_bytes_seg = MolReader_Bytes_raw_bytes(&script_args_seg);
         if (script_args_bytes_seg.size < 1 || script_args_bytes_seg.ptr[0] != FLAG_PERSONAL)
         {
-            return ERROR_MISS_PERSONAL_CELLDEP;
+            return ERROR_MISS_FUNCTION_CELLDEP;
         }
         CHECK_RET(ckbx_flag1_load_project_id(
             script_args_bytes_seg.ptr + 1, script_args_bytes_seg.size - 1, project_id));
         if (memcmp(expected_project_id, project_id, HASH_SIZE))
         {
-            return ERROR_MISS_PERSONAL_CELLDEP;
+            return ERROR_MISS_FUNCTION_CELLDEP;
         }
         if (celldep_data)
         {
             _len = len;
             ret = ckb_load_cell_data(cache, &_len, 0, i, CKB_SOURCE_CELL_DEP);
-            if (ret != CKB_SUCCESS)
+            if (ret != CKB_SUCCESS || _len > len)
             {
-                return ERROR_MISS_PERSONAL_CELLDEP;
+                return ERROR_MISS_FUNCTION_CELLDEP;
             }
             celldep_data->ptr = cache;
             celldep_data->size = _len;

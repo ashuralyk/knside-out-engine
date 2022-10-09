@@ -2,7 +2,6 @@ array Hash [byte; 32];
 vector String <byte>;
 option StringOpt (String);
 vector StringVec <String>;
-option StringVecOpt (StringVec);
 
 // represent global data
 table Flag_0 {
@@ -16,8 +15,21 @@ table Flag_1 {
 
 // represent contract request call
 table Flag_2 {
+    project_id: Hash,
+}
+
+// represent simplified cell format
+table Cell {
+    owner_lockscript: String,
+    data: StringOpt,
+}
+
+vector CellVec <Cell>;
+
+// describe request information
+table Request {
+    cells: CellVec,
     function_call: String,
-    caller_lockscript: String,
-    recipient_lockscript: StringOpt,
-    personal_celldeps: StringVecOpt,
+    function_celldeps: StringVec,
+    floating_lockscripts: StringVec,
 }

@@ -24,7 +24,7 @@ int verify_global_data(uint8_t *cache, lua_State *L, int herr, mol_seg_t script_
         {
             return ERROR_NO_DEPLOYMENT_CELL;
         }
-        CHECK_RET(ckbx_check_request_exist(cache, MAX_CACHE_SIZE, CKB_SOURCE_INPUT, 1, NULL));
+        CHECK_RET(ckbx_check_request_exist(cache, MAX_CACHE_SIZE, CKB_SOURCE_INPUT, 1, project_id, NULL));
     }
     // global data initial mode
     else

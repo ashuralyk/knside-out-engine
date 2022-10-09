@@ -7,12 +7,14 @@
 int inject_personal_operation(uint8_t *cache, lua_State *L, int herr)
 {
     int ret = CKB_SUCCESS;
-    // inject unchecked global table
+    // set unchecked global table
     lua_newtable(L);
     lua_setglobal(L, LUA_UNCHECKED);
-    // inject KOC checker global function
-    lua_pushcfunction(L, lua_check_koc);
-    lua_setglobal(L, LUA_KOC_CHECKER);
+    // set input/output global offset
+    lua_pushinteger(L, 1);
+    lua_setglobal(L, LUA_INPUT_OFFSET);
+    lua_pushinteger(L, 1);
+    lua_setglobal(L, LUA_OUTPUT_OFFSET);
     // set random seed by transaction inputs
     uint64_t seed[2];
     CHECK_RET(ckbx_get_random_seeds(cache, MAX_CACHE_SIZE, (uint8_t *)seed));
@@ -89,32 +91,23 @@ int verify_personal_data(uint8_t *cache, lua_State *L, int herr, mol_seg_t scrip
     {
         ckb_debug("personal/request mode");
         mol_seg_t request_seg;
-        CHECK_RET(ckbx_check_request_exist(cache, MAX_CACHE_SIZE, CKB_SOURCE_GROUP_OUTPUT, 0, &request_seg));
-        // check validation of caller_lockscript
-        uint8_t caller_hash[HASH_SIZE];
-        CHECK_RET(ckbx_flag2_load_caller_lockhash(request_seg.ptr + 1, request_seg.size - 1, caller_hash));
-        uint8_t expect_hash[HASH_SIZE];
-        len = HASH_SIZE;
-        ckb_load_cell_by_field(expect_hash, &len, 0, 0, CKB_SOURCE_INPUT, CKB_CELL_FIELD_LOCK_HASH);
-        if (memcmp(expect_hash, caller_hash, HASH_SIZE))
-        {
-            return ERROR_REQUEST_CALLER_HASH;
-        }
-        // check validation of personal_celldeps
+        CHECK_RET(ckbx_check_request_exist(
+            cache, MAX_CACHE_SIZE, CKB_SOURCE_GROUP_OUTPUT, 0, project_id, &request_seg));
+        // check validation of inputs cells
+        mol_seg_t cells_seg;
+        CHECK_RET(ckbx_request_load_cells(request_seg.ptr, request_seg.size, &cells_seg));
+        CHECK_RET(ckbx_check_request_cells_validation(
+            cache + request_seg.size, MAX_CACHE_SIZE - request_seg.size, cells_seg));
+        // check validation of function celldeps
         size_t count = 0;
-        uint8_t personal_hashes[HASH_SIZE][MAX_PERSONAL_DEP_COUNT];
-        CHECK_RET(ckbx_flag2_load_personal_celldep_lockhashes(
-            request_seg.ptr + 1, request_seg.size - 1, personal_hashes, &count));
+        uint8_t celldep_hashes[HASH_SIZE][MAX_CELLDEP_COUNT];
+        CHECK_RET(ckbx_request_load_function_celldeps_lockhash(
+            request_seg.ptr, request_seg.size, celldep_hashes, &count));
         for (size_t i = 0; i < count; ++i)
         {
-            CHECK_RET(ckbx_check_personal_celldep_exist(
-                cache, MAX_CACHE_SIZE, code_hash, project_id, personal_hashes[i], NULL));
+            CHECK_RET(ckbx_check_function_celldep_exist(
+                cache, MAX_CACHE_SIZE, code_hash, project_id, celldep_hashes[i], NULL));
         }
-        // check if user input cells match request data
-        len = MAX_CACHE_SIZE;
-        CHECK_RET(ckb_load_cell_data(cache, &len, 0, 0, CKB_SOURCE_GROUP_OUTPUT));
-        mol_seg_t request_data_seg = {cache, len};
-        CHECK_RET(ckbx_check_request_data_validation(cache + len, MAX_CACHE_SIZE - len, request_data_seg));
     }
     return CKB_SUCCESS;
 }

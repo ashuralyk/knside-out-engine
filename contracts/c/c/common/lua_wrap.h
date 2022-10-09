@@ -98,6 +98,14 @@ void lua_pushhexstrng(lua_State *L, uint8_t *hex_string, size_t len)
     lua_pushlstring(L, hex, len * 2);
 }
 
+void lua_addoffset(lua_State *L, const char *offset, int change)
+{
+    lua_getglobal(L, offset);
+    lua_pushinteger(L, lua_tointeger(L, -1) + change);
+    lua_setglobal(L, offset);
+    lua_pop(L, 1);
+}
+
 int lua_println(lua_State *L)
 {
     for (int i = 1; i <= lua_gettop(L); ++i)
@@ -218,36 +226,6 @@ int lua_inject_json_context(lua_State *L, uint8_t *json_data, size_t len, const 
     return CKB_SUCCESS;
 }
 
-int lua_inject_stringvec_json_context(lua_State *L, mol_seg_t stringvec_seg, const char *name)
-{
-    // check `KOC` or make new one
-    lua_getglobal(L, LUA_KOC);
-    if (!lua_istable(L, -1))
-    {
-        lua_newtable(L);
-    }
-    // create Personals table
-    lua_newtable(L);
-    if (MolReader_StringVec_verify(&stringvec_seg, false))
-    {
-        int ret = CKB_SUCCESS;
-        size_t count = MolReader_StringVec_length(&stringvec_seg);
-        lua_newtable(L);
-        for (size_t i = 0; i < count; ++i)
-        {
-            mol_seg_t string_seg = MolReader_StringVec_get(&stringvec_seg, i).seg;
-            mol_seg_t string_bytes_seg = MolReader_String_raw_bytes(&string_seg);
-            CHECK_RET(_json_to_table(
-                L, (char *)string_bytes_seg.ptr, string_bytes_seg.size, NULL));
-            lua_rawseti(L, -2, i);
-        }
-    }
-    lua_setfield(L, -2, name);
-    // setup `KOC`
-    lua_setglobal(L, LUA_KOC);
-    return CKB_SUCCESS;
-}
-
 int lua_inject_auth_context(lua_State *L, uint8_t auth_hash[HASH_SIZE], const char *name)
 {
     // check `KOC` or make new one
@@ -330,7 +308,7 @@ int lua_check_global_data(lua_State *L, const char *method, mol_seg_t driver, mo
     return CKB_SUCCESS;
 }
 
-int lua_check_personal_data(lua_State *L, const char *method, mol_seg_t owner, mol_seg_t personal, int herr)
+int lua_check_personal_data(lua_State *L, const char *method, mol_seg_t owner, mol_seg_t data, int herr)
 {
     // load first table parameter
     if (luaL_loadstring(L, method) || lua_pcall(L, 0, 1, herr))
@@ -345,22 +323,22 @@ int lua_check_personal_data(lua_State *L, const char *method, mol_seg_t owner, m
     }
     // create data table for comparision
     lua_newtable(L);
-    // file `user` object
+    // fill `owner` object
     lua_pushhexstrng(L, owner.ptr, owner.size);
-    lua_setfield(L, -2, "user");
-    // file `personal` object
-    if (personal.ptr != NULL)
+    lua_setfield(L, -2, "owner");
+    // fill `data` object
+    if (data.ptr != NULL)
     {
-        if (personal.size > 0)
+        if (data.size > 0)
         {
             int ret = CKB_SUCCESS;
-            CHECK_RET(_json_to_table(L, (char *)personal.ptr, personal.size, NULL));
+            CHECK_RET(_json_to_table(L, (char *)data.ptr, data.size, NULL));
         }
         else
         {
             lua_newtable(L);
         }
-        lua_setfield(L, -2, "personal");
+        lua_setfield(L, -2, "data");
     }
     // compare with unchecked table
     bool equal = true;
@@ -373,26 +351,18 @@ int lua_check_personal_data(lua_State *L, const char *method, mol_seg_t owner, m
     return CKB_SUCCESS;
 }
 
-int lua_flatten_copy_table(lua_State *L, const char *keys[], size_t len)
+int lua_append_table(lua_State *L, int source, int target)
 {
-    if (!lua_istable(L, -1))
+    if (!lua_istable(L, source) || !lua_istable(L, target))
     {
-        return ERROR_LUA_DEEP_COPY;
+        return ERROR_LUA_TABLE_MERGE;
     }
-    int real_i = lua_gettop(L);
-    lua_newtable(L);
-    int copy_i = lua_gettop(L);
-    for (size_t i = 0; i < len; ++i)
+    size_t offset = luaL_len(L, target);
+    size_t size = luaL_len(L, source);
+    for (size_t i = 1; i <= size; ++i)
     {
-        lua_pushstring(L, keys[i]);
-        lua_gettable(L, real_i);
-        if (lua_istable(L, -1))
-        {
-        }
-        else
-        {
-            lua_setfield(L, copy_i, keys[i]);
-        }
+        lua_rawgeti(L, source, i);
+        lua_rawseti(L, target, ++offset);
     }
     return CKB_SUCCESS;
 }
