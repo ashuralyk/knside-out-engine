@@ -1,20 +1,35 @@
 array Hash [byte; 32];
 vector String <byte>;
 option StringOpt (String);
+vector StringVec <String>;
 
-// represent global data
-table Flag_0 {
+// represent global/personal/request data type
+table Identity {
+    flag: byte,
     project_id: Hash,
 }
 
-// represent personal data
-table Flag_1 {
-    project_id: Hash,
+// represent simplified cell format
+table Cell {
+    owner_lockscript: String,
+    data: StringOpt,
 }
 
-// represent native or remote contract reqeust call
-table Flag_2 {
+vector CellVec <Cell>;
+
+// represent out_point for locating celldep
+table Celldep {
+    tx_hash: Hash,
+    index: byte,
+    data_hash: Hash,
+}
+
+vector CelldepVec <Celldep>;
+
+// describe request information
+table Request {
+    cells: CellVec,
     function_call: String,
-    caller_lockscript: String,
-    recipient_lockscript: StringOpt,
+    function_celldeps: CelldepVec,
+    floating_lockscripts: StringVec,
 }

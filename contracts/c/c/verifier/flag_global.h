@@ -5,12 +5,13 @@
 #include "../common/lua_wrap.h"
 #include "../common/high_level.h"
 
-int verify_global_data(uint8_t *cache, lua_State *L, int herr, mol_seg_t script_args, uint8_t code_hash[HASH_SIZE])
+int verify_global_data(
+    uint8_t *cache, lua_State *L, int herr, mol_seg_t flag_seg, uint8_t code_hash[HASH_SIZE])
 {
     int ret = CKB_SUCCESS;
     // check flag0
     uint8_t project_id[HASH_SIZE];
-    CHECK_RET(ckbx_flag0_load_project_id(script_args.ptr + 1, script_args.size - 1, project_id));
+    CHECK_RET(ckbx_identity_load_project_id(flag_seg.ptr, flag_seg.size, project_id));
     // check cell mode
     bool is_update_mode;
     CHECK_RET(ckbx_check_global_update_mode(cache, MAX_CACHE_SIZE, &is_update_mode));
@@ -24,7 +25,8 @@ int verify_global_data(uint8_t *cache, lua_State *L, int herr, mol_seg_t script_
         {
             return ERROR_NO_DEPLOYMENT_CELL;
         }
-        CHECK_RET(ckbx_check_request_exist(cache, MAX_CACHE_SIZE, CKB_SOURCE_INPUT, 1, project_id, NULL));
+        CHECK_RET(ckbx_check_request_exist(
+            cache, MAX_CACHE_SIZE, CKB_SOURCE_INPUT, 1, code_hash, project_id, NULL));
     }
     // global data initial mode
     else

@@ -16,22 +16,20 @@ int _inject_function_celldeps_array_context(
     }
     int ret = CKB_SUCCESS;
     size_t count = 0;
-    uint8_t lock_hashes[HASH_SIZE][MAX_CELLDEP_COUNT];
-    CHECK_RET(ckbx_request_load_function_celldeps_lockhash(
-        request_seg.ptr, request_seg.size, lock_hashes, &count));
+    uint8_t data_hashes[HASH_SIZE][MAX_CELLDEP_COUNT];
+    CHECK_RET(ckbx_request_load_function_celldeps(
+        request_seg.ptr, request_seg.size, data_hashes, &count));
     lua_newtable(L);
     for (size_t i = 0; i < count; ++i)
     {
-        // key
-        lua_pushhexstrng(L, lock_hashes[i], HASH_SIZE);
         // value
         mol_seg_t celldep_data;
         CHECK_RET(ckbx_check_function_celldep_exist(
-            cache, len, code_hash, project_id, lock_hashes[i], &celldep_data));
+            cache, len, code_hash, project_id, data_hashes[i], &celldep_data));
         CHECK_RET(_json_to_table(
             L, (char *)celldep_data.ptr, celldep_data.size, NULL));
-        // libraries[key] = value
-        lua_settable(L, -2);
+        // libraries[i] = value
+        lua_rawseti(L, -2, i + 1);
     }
     lua_setfield(L, -2, name);
     lua_setglobal(L, LUA_KOC);
@@ -73,7 +71,7 @@ int _inject_cells_array_context(lua_State *L, mol_seg_t request_seg, const char 
     int ret = CKB_SUCCESS;
     mol_seg_t cells_seg;
     CHECK_RET(ckbx_request_load_cells(request_seg.ptr, request_seg.size, &cells_seg));
-    if (MolReader_CellVec_verify(&cells_seg, false))
+    if (MolReader_CellVec_verify(&cells_seg, false) == MOL_OK)
     {
         uint8_t lock_hash[HASH_SIZE];
         size_t count = MolReader_CellVec_length(&cells_seg);
@@ -104,7 +102,7 @@ int _inject_cells_array_context(lua_State *L, mol_seg_t request_seg, const char 
             }
             lua_setfield(L, -2, "data");
             // inputs[i] = value
-            lua_rawseti(L, -2, i);
+            lua_rawseti(L, -2, i + 1);
         }
     }
     lua_setfield(L, -2, name);
@@ -166,14 +164,14 @@ int _process_function_result(lua_State *L)
 }
 
 int util_apply_request_args(
-    void *args, size_t i, mol_seg_t cache, mol_seg_t lock_args, mol_seg_t request_seg, int herr)
+    void *args, size_t i, mol_seg_t cache, mol_seg_t _empty, mol_seg_t request_seg, int herr)
 {
-    if (lock_args.ptr[0] != FLAG_REQUEST)
-    {
-        return ERROR_REQUEST_FLAG;
-    }
     LuaParams *params = (LuaParams *)args;
     lua_State *L = (lua_State *)params->L;
+    if (lua_getoffset(L, LUA_INPUT_OFFSET) != i)
+    {
+        return ERROR_UNMATCHED_INPUT_OFFSET;
+    }
     int recover_top = lua_gettop(L);
     int ret = CKB_SUCCESS;
     CHECK_RET(_inject_cells_array_context(L, request_seg, "inputs"));
@@ -184,19 +182,20 @@ int util_apply_request_args(
     lua_getglobal(L, LUA_KOC);
     CHECK_RET(lua_deep_copy_table(L));
     lua_setglobal(L, LUA_KOC_BACKUP);
-    lua_pop(L, 1);
     // fetch user request method function
-    uint8_t function_call[MAX_FUNCTION_CALL_SIZE] = "";
+    char function_call[MAX_FUNCTION_CALL_SIZE] = LUA_PREFIX;
     CHECK_RET(ckbx_request_load_function_call(
-        request_seg.ptr, request_seg.size, function_call, MAX_FUNCTION_CALL_SIZE));
-    ckb_debug((char *)function_call);
-    if (luaL_loadstring(L, (char *)function_call) || lua_pcall(L, 0, 1, herr))
+        request_seg.ptr, request_seg.size,
+        function_call + strlen(LUA_PREFIX), MAX_FUNCTION_CALL_SIZE - strlen(LUA_PREFIX)));
+    ckb_debug(function_call);
+    if (luaL_loadstring(L, function_call) || lua_pcall(L, 0, 1, herr))
     {
         DEBUG_PRINT(
-            "[ERROR] invalid request function call. (cell = %lu, payload = %s)", i, (char *)function_call);
+            "[ERROR] invalid request function call. (cell = %lu, payload = %s)", i, function_call);
         uint64_t input_ckb, output_ckb;
+        int output_i = lua_getoffset(L, LUA_OUTPUT_OFFSET);
         CHECK_RET(ckbx_get_parallel_cell_capacity(
-            CKB_SOURCE_INPUT, false, CKB_SOURCE_OUTPUT, false, i, &input_ckb, &output_ckb));
+            CKB_SOURCE_INPUT, false, i, CKB_SOURCE_OUTPUT, false, output_i, &input_ckb, &output_ckb));
         if (input_ckb != output_ckb)
         {
             return ERROR_UNMATCHED_REQUEST_CKB;
@@ -214,12 +213,15 @@ int util_apply_request_args(
 int util_apply_personal_data(
     void *L, size_t i, mol_seg_t cache, mol_seg_t user, mol_seg_t data, int herr)
 {
-    snprintf((char *)cache.ptr, cache.size, "return %s[%lu]", LUA_UNCHECKED, i);
-    int ret = lua_check_personal_data((lua_State *)L, (char *)cache.ptr, user, data, herr);
-    if (ret != CKB_SUCCESS)
+    if (i < lua_getoffset(L, LUA_OUTPUT_OFFSET))
     {
-        DEBUG_PRINT("[ERROR] mismatched input/output. (cell = %lu)", i);
-        return ret;
+        snprintf((char *)cache.ptr, cache.size, "return %s[%lu]", LUA_UNCHECKED, i);
+        int ret = lua_check_personal_data((lua_State *)L, (char *)cache.ptr, user, data, herr);
+        if (ret != CKB_SUCCESS)
+        {
+            DEBUG_PRINT("[ERROR] mismatched output cell. (cell = %lu)", i);
+            return ret;
+        }
     }
     return CKB_SUCCESS;
 }

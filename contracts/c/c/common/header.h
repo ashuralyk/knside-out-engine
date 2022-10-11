@@ -12,10 +12,12 @@
         return ret;  \
     }
 
-#define DEBUG_PRINT(s, ...)         \
-    char debug[512];                \
-    sprintf(debug, s, __VA_ARGS__); \
-    ckb_debug(debug);
+#define DEBUG_PRINT(s, ...)             \
+    {                                   \
+        char debug[512];                \
+        sprintf(debug, s, __VA_ARGS__); \
+        ckb_debug(debug);               \
+    }
 
 #define MAX_CACHE_SIZE (64 * 1024)
 #define MAX_JSON_SIZE 1024
@@ -29,6 +31,7 @@
 #define HALF_HASH_SIZE (HASH_SIZE / 2)
 #define CKB_ONE 100000000
 
+#define LUA_PREFIX "return "
 #define LUA_INPUT_OFFSET "__input_offset"
 #define LUA_OUTPUT_OFFSET "__output_offset"
 #define LUA_UNCHECKED "__koc_unchecked"
@@ -45,6 +48,7 @@ enum FALG
 enum ERROR
 {
     ERROR_LOADING_SCRIPT = 4,
+    ERROR_UNEXPECTED_FALG,
     ERROR_NO_REQUEST_CELLS,
     ERROR_LOADING_REQUEST_CELL,
     ERROR_LOADING_GLOBAL_CELL,
@@ -62,10 +66,9 @@ enum ERROR
     ERROR_PERSONAL_ARGS,
     ERROR_REQUEST_CELLS_FORMAT,
     ERROR_REQUEST_CELLS_DATA,
+    ERROR_REQUEST_CELLS_TYPESCRIPT,
     ERROR_REQUEST_CELLS_LOCKSCRIPT,
-    ERROR_FLAG_0_BYTES,
-    ERROR_FLAG_1_BYTES,
-    ERROR_FLAG_2_BYTES,
+    ERROR_FLAG_BYTES,
     ERROR_REQUEST_BYTES,
     ERROR_NO_DEPLOYMENT_CELL,
     ERROR_DEPLOYMENT_FORMAT,
@@ -79,8 +82,8 @@ enum ERROR
     ERROR_FUNCTION_CELLDEP_EXCESSIVE,
     ERROR_FLOATING_LOCKSCRIPT_EXCESSIVE,
     ERROR_MISS_FUNCTION_CELLDEP,
-    ERROR_UNCONTINUOUS_UNCHECKED,
     ERROR_UNMATCHED_REQUEST_CKB,
+    ERROR_UNMATCHED_INPUT_OFFSET,
     ERROR_TABLE_TO_SJON,
     ERROR_JSON_TO_TABLE,
     ERROR_UNINITIAL_CONTEXT,

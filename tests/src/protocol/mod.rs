@@ -31,34 +31,63 @@ fn mol_string_opt(v: Option<&[u8]>) -> protocol::StringOpt {
     }
 }
 
-pub fn mol_flag_0(hash: &[u8; 32]) -> Vec<u8> {
-    let mut flag_0_bytes = protocol::Flag0::new_builder()
+fn mol_string_vec(v: &Vec<&[u8]>) -> protocol::StringVec {
+    let strings = v.iter().map(|bytes| mol_string(bytes)).collect::<Vec<_>>();
+    protocol::StringVec::new_builder().set(strings).build()
+}
+
+fn mol_cell(lockscript: &[u8], data: Option<&[u8]>) -> protocol::Cell {
+    protocol::Cell::new_builder()
+        .owner_lockscript(mol_string(lockscript))
+        .data(mol_string_opt(data))
+        .build()
+}
+
+fn mol_cell_vec(v: &Vec<(&[u8], Option<&[u8]>)>) -> protocol::CellVec {
+    let cells = v
+        .iter()
+        .map(|(lock, data)| mol_cell(lock, *data))
+        .collect::<Vec<_>>();
+    protocol::CellVec::new_builder().set(cells).build()
+}
+
+fn mol_celldep(tx_hash: &[u8; 32], index: u8, data_hash: &[u8; 32]) -> protocol::Celldep {
+    protocol::Celldep::new_builder()
+        .tx_hash(mol_hash(tx_hash))
+        .index(index.into())
+        .data_hash(mol_hash(data_hash))
+        .build()
+}
+
+fn mol_celldep_vec(celldeps: &Vec<(&[u8; 32], u8, &[u8; 32])>) -> protocol::CelldepVec {
+    let celldeps = celldeps
+        .iter()
+        .map(|(tx_hash, index, data_hash)| mol_celldep(tx_hash, *index, data_hash))
+        .collect::<Vec<_>>();
+    protocol::CelldepVec::new_builder().set(celldeps).build()
+}
+
+pub fn mol_identity(flag: u8, hash: &[u8; 32]) -> Vec<u8> {
+    protocol::Identity::new_builder()
+        .flag(flag.into())
         .project_id(mol_hash(hash))
         .build()
         .as_bytes()
-        .to_vec();
-    flag_0_bytes.insert(0, 0u8);
-    flag_0_bytes
+        .to_vec()
 }
 
-pub fn mol_flag_1(hash: &[u8; 32]) -> Vec<u8> {
-    let mut flag_1_bytes = protocol::Flag1::new_builder()
-        .project_id(mol_hash(hash))
-        .build()
-        .as_bytes()
-        .to_vec();
-    flag_1_bytes.insert(0, 1u8);
-    flag_1_bytes
-}
-
-pub fn mol_flag_2(method: &str, lockscript: &[u8], recipient: Option<&[u8]>) -> Vec<u8> {
-    let mut flag_2_bytes = protocol::Flag2::new_builder()
+pub fn mol_request(
+    method: &str,
+    cells: &Vec<(&[u8], Option<&[u8]>)>,
+    cell_deps: &Vec<(&[u8; 32], u8, &[u8; 32])>,
+    floatings: &Vec<&[u8]>,
+) -> Vec<u8> {
+    protocol::Request::new_builder()
         .function_call(mol_string(method.as_bytes()))
-        .caller_lockscript(mol_string(lockscript))
-        .recipient_lockscript(mol_string_opt(recipient))
+        .cells(mol_cell_vec(cells))
+        .function_celldeps(mol_celldep_vec(cell_deps))
+        .floating_lockscripts(mol_string_vec(floatings))
         .build()
         .as_bytes()
-        .to_vec();
-    flag_2_bytes.insert(0, 2u8);
-    flag_2_bytes
+        .to_vec()
 }

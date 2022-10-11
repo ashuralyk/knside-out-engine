@@ -37,7 +37,7 @@ fn test_success_deploy_project() {
 
     // build project deployment and flag 0
     let luacode = std::fs::read_to_string("./lua/nft.lua").unwrap();
-    let flag_0 = protocol::mol_flag_0(&type_id_script.calc_script_hash().unpack());
+    let flag_0 = protocol::mol_identity(0, &type_id_script.calc_script_hash().unpack());
 
     // build inside-out type script
     let contract_script = context
@@ -132,8 +132,15 @@ fn test_success_personal_request() {
         .expect("type_id script");
 
     // build project deployment and flag 0 and 2
-    let flag_1 = protocol::mol_flag_1(&type_id_script.calc_script_hash().unpack());
-    let flag_2 = protocol::mol_flag_2("mint()", always_success_lock_script.as_slice(), None);
+    let project_id = type_id_script.calc_script_hash().unpack();
+    let flag_1 = protocol::mol_identity(1, &project_id);
+    let flag_2 = protocol::mol_identity(2, &project_id);
+    let request = protocol::mol_request(
+        "mint()",
+        &vec![(always_success_lock_script.as_slice(), Some(b"{}"))],
+        &vec![(&[0u8; 32], 0, &blake2b_256(b"abcdefg"))],
+        &vec![],
+    );
 
     // build inside-out type script and lock script
     let request_script = context
@@ -144,50 +151,47 @@ fn test_success_personal_request() {
         .expect("personal script");
     let contract_dep = CellDep::new_builder().out_point(out_point).build();
 
+    // build personal celldeps
+    let personal_cell = CellOutput::new_builder()
+        .lock(always_success_lock_script.clone())
+        .type_(Some(contract_script.clone()).pack())
+        .build_exact_capacity(Capacity::zero())
+        .unwrap();
+    let personal_celldep = CellDep::new_builder()
+        .out_point(context.create_cell(personal_cell, Bytes::from_static(b"abcdefg")))
+        .build();
+
     // build project input
-    let inputs = vec![
-        CellInput::new_builder()
-            .previous_output(
-                context.create_cell(
-                    CellOutput::new_builder()
-                        .capacity(1000.pack())
-                        .lock(always_success_lock_script.clone())
-                        // .type_(Some(contract_script.clone()).pack())
-                        .build(),
-                    Bytes::from_static(b"{}"),
-                ),
-            )
-            .build(),
-        CellInput::new_builder()
-            .previous_output(
-                context.create_cell(
-                    CellOutput::new_builder()
-                        .capacity(1000.pack())
-                        .lock(always_success_lock_script.clone())
-                        .build(),
-                    Bytes::new(),
-                ),
-            )
-            .build(),
-    ];
+    let inputs = vec![CellInput::new_builder()
+        .previous_output(
+            context.create_cell(
+                CellOutput::new_builder()
+                    .capacity(2000.pack())
+                    .lock(always_success_lock_script.clone())
+                    .type_(Some(contract_script.clone()).pack())
+                    .build(),
+                Bytes::from_static(b"{}"),
+            ),
+        )
+        .build()];
 
     // build project outputs
     let outputs = vec![
-        // normal cell
-        CellOutput::new_builder()
-            .capacity(1000.pack())
-            .lock(always_success_lock_script)
-            .build(),
-        // unlocked normal cell for request 1
+        // request cell
         CellOutput::new_builder()
             .capacity(1000.pack())
             .lock(request_script)
             .type_(Some(contract_script).pack())
             .build(),
+        // normal cell
+        CellOutput::new_builder()
+            .capacity(1000.pack())
+            .lock(always_success_lock_script)
+            .build(),
     ];
 
     // build project outputs data
-    let outputs_data = vec![Bytes::new().pack(), Bytes::new().pack()];
+    let outputs_data = vec![Bytes::from(request).pack(), Bytes::new().pack()];
 
     // build tx
     let tx = TransactionBuilder::default()
@@ -196,6 +200,7 @@ fn test_success_personal_request() {
         .outputs_data(outputs_data)
         .cell_dep(always_success_script_dep)
         .cell_dep(contract_dep)
+        .cell_dep(personal_celldep)
         .build();
 
     // run
@@ -231,32 +236,42 @@ fn test_success_update_personal_data() {
 
     // build project deployment and flag 0 and 2
     let luacode = std::fs::read_to_string("./lua/nft.lua").unwrap();
-    let flag_0 = protocol::mol_flag_0(&type_id_script.calc_script_hash().unpack());
-    let flag_1 = protocol::mol_flag_1(&type_id_script.calc_script_hash().unpack());
-    let flag_2_1 = protocol::mol_flag_2(
+    let project_id = type_id_script.calc_script_hash();
+    let flag_0 = protocol::mol_identity(0, &project_id.unpack());
+    let flag_1 = protocol::mol_identity(1, &project_id.unpack());
+    let flag_2 = protocol::mol_identity(2, &project_id.unpack());
+    let request_1 = protocol::mol_request(
         "updateGlobal('max_nft_count', 10)",
-        user1_lock_script.as_slice(),
-        None,
+        &vec![(user1_lock_script.as_slice(), None)],
+        &vec![],
+        &vec![],
     );
-    let flag_2_2 = protocol::mol_flag_2(
+    let request_2 = protocol::mol_request(
         "mint()",
-        user2_lock_script.as_slice(),
-        Some(user2_lock_script.as_slice()),
+        &vec![(user2_lock_script.as_slice(), None)],
+        &vec![],
+        &vec![user2_lock_script.as_slice()],
     );
-    let flag_2_3 = protocol::mol_flag_2("wrong_code()", user3_lock_script.as_slice(), None);
+    let celldep_data = b"{\"ugc\":\"return 'it is an UGC module'\"}";
+    let request_3 = protocol::mol_request(
+        "wrong_code()",
+        &vec![(user3_lock_script.as_slice(), None)],
+        &vec![(&[0u8; 32], 0, &blake2b_256(celldep_data))],
+        &vec![],
+    );
 
     // build inside-out type script and lock script
     let contract_script = context
         .build_script(&out_point, Bytes::from(flag_0))
         .expect("contract script");
     let request_1_script = context
-        .build_script(&out_point, Bytes::from(flag_2_1))
+        .build_script(&out_point, Bytes::from(flag_2.clone()))
         .expect("request1 script");
     let request_2_script = context
-        .build_script(&out_point, Bytes::from(flag_2_2))
+        .build_script(&out_point, Bytes::from(flag_2.clone()))
         .expect("request2 script");
     let request_3_script = context
-        .build_script(&out_point, Bytes::from(flag_2_3))
+        .build_script(&out_point, Bytes::from(flag_2))
         .expect("request3 script");
     let personal_script = context
         .build_script(&out_point, Bytes::from(flag_1))
@@ -277,6 +292,16 @@ fn test_success_update_personal_data() {
                 Bytes::from(luacode_chunck.dump(true)),
             ),
         )
+        .build();
+
+    // build personal celldeps
+    let personal_cell = CellOutput::new_builder()
+        .lock(always_success_lock_script.clone())
+        .type_(Some(personal_script.clone()).pack())
+        .build_exact_capacity(Capacity::zero())
+        .unwrap();
+    let personal_celldep = CellDep::new_builder()
+        .out_point(context.create_cell(personal_cell, Bytes::from_static(celldep_data)))
         .build();
 
     // build previous global data input
@@ -304,7 +329,7 @@ fn test_success_update_personal_data() {
                         .lock(request_1_script)
                         .type_(Some(personal_script.clone()).pack())
                         .build(),
-                    Bytes::new(),
+                    Bytes::from(request_1),
                 ),
             )
             .build(),
@@ -313,11 +338,11 @@ fn test_success_update_personal_data() {
             .previous_output(
                 context.create_cell(
                     CellOutput::new_builder()
-                        .capacity(Capacity::bytes(1000).unwrap().pack())
+                        .capacity(Capacity::bytes(2000).unwrap().pack())
                         .lock(request_2_script)
                         .type_(Some(personal_script.clone()).pack())
                         .build(),
-                    Bytes::new(),
+                    Bytes::from(request_2),
                 ),
             )
             .build(),
@@ -330,7 +355,7 @@ fn test_success_update_personal_data() {
                         .lock(request_3_script)
                         .type_(Some(personal_script.clone()).pack())
                         .build(),
-                    Bytes::new(),
+                    Bytes::from(request_3),
                 ),
             )
             .build(),
@@ -352,7 +377,7 @@ fn test_success_update_personal_data() {
     let outputs = vec![
         // next global data cell
         CellOutput::new_builder()
-            .capacity(Capacity::bytes(1000).unwrap().pack())
+            .capacity(Capacity::bytes(2000).unwrap().pack())
             .lock(user2_lock_script.clone())
             .type_(Some(contract_script).pack())
             .build(),
@@ -362,11 +387,17 @@ fn test_success_update_personal_data() {
             .lock(user1_lock_script)
             // .type_(Some(personal_script.clone()).pack())
             .build(),
-        // unlocked normal cell for request 2
+        // unlocked normal cell for request 2 (cell 1)
         CellOutput::new_builder()
             .capacity(Capacity::bytes(1000).unwrap().pack())
-            .lock(user2_lock_script)
+            .lock(user2_lock_script.clone())
             .type_(Some(personal_script.clone()).pack())
+            .build(),
+        // unlocked normal cell for request 2 (cell 2)
+        CellOutput::new_builder()
+            .capacity(Capacity::bytes(300).unwrap().pack())
+            .lock(user2_lock_script)
+            // .type_(Some(personal_script.clone()).pack())
             .build(),
         // unlocked normal cell for request 3
         CellOutput::new_builder()
@@ -390,6 +421,7 @@ fn test_success_update_personal_data() {
         Bytes::from_static(next_personal.as_bytes()).pack(),
         Bytes::new().pack(),
         Bytes::new().pack(),
+        Bytes::new().pack(),
     ];
 
     // build tx
@@ -400,6 +432,7 @@ fn test_success_update_personal_data() {
         .cell_dep(deployment_dep)
         .cell_dep(always_success_script_dep)
         .cell_dep(contract_dep)
+        .cell_dep(personal_celldep)
         .build();
 
     // run

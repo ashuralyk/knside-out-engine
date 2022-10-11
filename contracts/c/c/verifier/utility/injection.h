@@ -12,7 +12,7 @@ int _check_parallel_capacity(lua_State *L, size_t source, const char *key, const
     size_t i = lua_tointeger(L, -1);
     uint64_t offerred_ckb, occupied_ckb;
     int ret = ckbx_get_parallel_cell_capacity(
-        source, false, source, true, i, &offerred_ckb, &occupied_ckb);
+        source, false, i, source, true, i, &offerred_ckb, &occupied_ckb);
     if (ret != CKB_SUCCESS)
     {
         lua_pushboolean(L, false);
@@ -21,7 +21,7 @@ int _check_parallel_capacity(lua_State *L, size_t source, const char *key, const
     if (offerred_ckb < occupied_ckb + ckb)
     {
         DEBUG_PRINT(
-            "[ERROR] %s: need more %4.f ckb. (cell = %lu)",
+            "[ERROR] %s: need more%4.f ckb. (cell = %lu)",
             command, (occupied_ckb + ckb - offerred_ckb) / (double)CKB_ONE, i);
         lua_pushboolean(L, false);
         return 1;

@@ -3,18 +3,9 @@ vector String <byte>;
 option StringOpt (String);
 vector StringVec <String>;
 
-// represent global data
-table Flag_0 {
-    project_id: Hash,
-}
-
-// represent personal data
-table Flag_1 {
-    project_id: Hash,
-}
-
-// represent contract request call
-table Flag_2 {
+// represent global/personal/request data type
+table Identity {
+    flag: byte,
     project_id: Hash,
 }
 
@@ -26,10 +17,19 @@ table Cell {
 
 vector CellVec <Cell>;
 
+// represent out_point for locating celldep
+table Celldep {
+    tx_hash: Hash,
+    index: byte,
+    data_hash: Hash,
+}
+
+vector CelldepVec <Celldep>;
+
 // describe request information
 table Request {
     cells: CellVec,
     function_call: String,
-    function_celldeps: StringVec,
+    function_celldeps: CelldepVec,
     floating_lockscripts: StringVec,
 }

@@ -106,6 +106,14 @@ void lua_addoffset(lua_State *L, const char *offset, int change)
     lua_pop(L, 1);
 }
 
+size_t lua_getoffset(lua_State *L, const char *offset)
+{
+    lua_getglobal(L, offset);
+    int value = lua_tointeger(L, -1);
+    lua_pop(L, 1);
+    return (size_t)value;
+}
+
 int lua_println(lua_State *L)
 {
     for (int i = 1; i <= lua_gettop(L); ++i)

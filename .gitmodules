@@ -1,3 +1,6 @@
 [submodule "contracts/c/deps/ckb-c-stdlib"]
 	path = contracts/c/deps/ckb-c-stdlib
 	url = https://github.com/nervosnetwork/ckb-c-stdlib
+[submodule "contracts/c/lua"]
+	path = contracts/c/lua
+	url = https://github.com/ashuralyk/lua
