@@ -101,7 +101,7 @@ void lua_pushhexstrng(lua_State *L, uint8_t *hex_string, size_t len)
 void lua_addoffset(lua_State *L, const char *offset, int change)
 {
     lua_getglobal(L, offset);
-    lua_pushinteger(L, lua_tointeger(L, -1) + change);
+    lua_pushinteger(L, luaL_checkinteger(L, -1) + change);
     lua_setglobal(L, offset);
     lua_pop(L, 1);
 }
@@ -109,7 +109,7 @@ void lua_addoffset(lua_State *L, const char *offset, int change)
 size_t lua_getoffset(lua_State *L, const char *offset)
 {
     lua_getglobal(L, offset);
-    int value = lua_tointeger(L, -1);
+    int value = luaL_checkinteger(L, -1);
     lua_pop(L, 1);
     return (size_t)value;
 }

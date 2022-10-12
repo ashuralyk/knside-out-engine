@@ -64,8 +64,8 @@ function mint ()
 end
 
 function wrong_code ()
-    assert(#KOC.libraries > 0, "need one library")
-    local f, err = load(KOC.libraries[1].ugc)
+    assert(#KOC.components > 0, "need one library")
+    local f, err = load(KOC.components[1].ugc)
     if err then
         print(err)
     else

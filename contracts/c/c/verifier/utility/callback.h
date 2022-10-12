@@ -177,7 +177,7 @@ int util_apply_request_args(
     CHECK_RET(_inject_cells_array_context(L, request_seg, "inputs"));
     CHECK_RET(_inject_floating_lockhashes_array_context(L, request_seg, "candidates"));
     CHECK_RET(_inject_function_celldeps_array_context(
-        L, cache.ptr, cache.size, request_seg, params->code_hash, params->project_id, "libraries"));
+        L, cache.ptr, cache.size, request_seg, params->code_hash, params->project_id, "components"));
     // dumplicate KOC into backup
     lua_getglobal(L, LUA_KOC);
     CHECK_RET(lua_deep_copy_table(L));
@@ -211,12 +211,13 @@ int util_apply_request_args(
 }
 
 int util_apply_personal_data(
-    void *L, size_t i, mol_seg_t cache, mol_seg_t user, mol_seg_t data, int herr)
+    void *args, size_t i, mol_seg_t cache, mol_seg_t user, mol_seg_t data, int herr)
 {
+    lua_State *L = (lua_State *)args;
     if (i < lua_getoffset(L, LUA_OUTPUT_OFFSET))
     {
         snprintf((char *)cache.ptr, cache.size, "return %s[%lu]", LUA_UNCHECKED, i);
-        int ret = lua_check_personal_data((lua_State *)L, (char *)cache.ptr, user, data, herr);
+        int ret = lua_check_personal_data(L, (char *)cache.ptr, user, data, herr);
         if (ret != CKB_SUCCESS)
         {
             DEBUG_PRINT("[ERROR] mismatched output cell. (cell = %lu)", i);
