@@ -63,7 +63,7 @@ int ckbx_identity_load_flag(uint8_t *cache, size_t len, uint8_t *flag)
     mol_seg_t identity_seg = {cache, len};
     if (MolReader_Identity_verify(&identity_seg, false) != MOL_OK)
     {
-        return ERROR_FLAG_BYTES;
+        return ERROR_IDENTITY_BYTES;
     }
     mol_seg_t flag_seg = MolReader_Identity_get_flag(&identity_seg);
     *flag = *flag_seg.ptr;
@@ -75,7 +75,7 @@ int ckbx_identity_load_project_id(uint8_t *cache, size_t len, uint8_t project_id
     mol_seg_t identity_seg = {cache, len};
     if (MolReader_Identity_verify(&identity_seg, false) != MOL_OK)
     {
-        return ERROR_FLAG_BYTES;
+        return ERROR_IDENTITY_BYTES;
     }
     mol_seg_t project_id_seg = MolReader_Identity_get_project_id(&identity_seg);
     memcpy(project_id, project_id_seg.ptr, project_id_seg.size);
@@ -331,7 +331,7 @@ int ckbx_check_request_exist(
         ret = ckb_load_cell_data(cache, &len, 0, i, source);
         if (ret != CKB_SUCCESS || len > MAX_CACHE_SIZE)
         {
-            return ERROR_REQUEST_ARGS;
+            return ERROR_NO_REQUEST_CELLS;
         }
         mol_seg_t request_seg = {cache, len};
         *output_request_seg = request_seg;

@@ -14,6 +14,10 @@ int verify_request_data(
     CHECK_RET(ckbx_identity_load_project_id(flag_seg.ptr, flag_seg.size, project_id));
     for (size_t i = 0; true; ++i)
     {
+        if (i == MAX_SAME_REQUEST_COUNT)
+        {
+            return ERROR_REQUEST_EXCESSIVE;
+        }
         size_t len = sizeof(uint64_t);
         ret = ckb_load_cell_by_field(
             NULL, &len, 0, i, CKB_SOURCE_GROUP_INPUT, CKB_CELL_FIELD_CAPACITY);
