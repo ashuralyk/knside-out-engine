@@ -12,6 +12,7 @@ int _json_to_table_internal_array(lua_State *, char *, jsmntok_t *, int);
 int _json_to_table(lua_State *L, char *json, size_t len, int *out_count)
 {
     // make sure the end of bytes is ZERO
+    char previous_char = json[len];
     json[len] = '\0';
     ckb_debug(json);
 
@@ -31,7 +32,17 @@ int _json_to_table(lua_State *L, char *json, size_t len, int *out_count)
     }
 
     lua_newtable(L);
-    return ttype == JSMN_OBJECT ? _json_to_table_internal_table(L, json, tokens, count) : _json_to_table_internal_array(L, json, tokens, count);
+    int ret = CKB_SUCCESS;
+    if (ttype == JSMN_OBJECT)
+    {
+        ret = _json_to_table_internal_table(L, json, tokens, count);
+    }
+    else
+    {
+        ret = _json_to_table_internal_array(L, json, tokens, count);
+    }
+    json[len] = previous_char;
+    return ret;
 }
 
 void _json_handle_primitive_and_string(lua_State *L, char *json, jsmntok_t *tokens, int i)
