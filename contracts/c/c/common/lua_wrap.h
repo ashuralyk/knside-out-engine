@@ -271,6 +271,7 @@ int lua_inject_operation_context(lua_State *L, LuaOperation *operations, size_t 
 
 int lua_inject_random_seeds(lua_State *L, uint64_t seed[2], int herr)
 {
+    // invoke math.randomseed
     lua_getglobal(L, "math");
     lua_pushstring(L, "randomseed");
     lua_gettable(L, -2);
@@ -281,6 +282,21 @@ int lua_inject_random_seeds(lua_State *L, uint64_t seed[2], int herr)
         ckb_debug("[ERROR] invalid math.randomseed params.");
         return ERROR_LUA_INJECT;
     }
+    // check `KOC` or make new one
+    lua_getglobal(L, LUA_KOC);
+    if (!lua_istable(L, -1))
+    {
+        lua_newtable(L);
+    }
+    // push random seeds
+    lua_newtable(L);
+    lua_pushinteger(L, seed[0]);
+    lua_rawseti(L, -2, 1);
+    lua_pushinteger(L, seed[1]);
+    lua_rawseti(L, -2, 2);
+    lua_setfield(L, -2, "seeds");
+    // reset `KOC`
+    lua_setglobal(L, LUA_KOC);
     return CKB_SUCCESS;
 }
 
