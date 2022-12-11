@@ -192,14 +192,14 @@ int util_apply_request_args(
     {
         DEBUG_PRINT(
             "[ERROR] invalid request function call. (cell = %lu, payload = %s)", i, function_call);
-        uint64_t input_ckb, output_ckb;
-        int output_i = lua_getoffset(L, LUA_OUTPUT_OFFSET);
-        CHECK_RET(ckbx_get_parallel_cell_capacity(
-            CKB_SOURCE_INPUT, false, i, CKB_SOURCE_OUTPUT, false, output_i, &input_ckb, &output_ckb));
-        if (input_ckb != output_ckb)
-        {
-            return ERROR_UNMATCHED_REQUEST_CKB;
-        }
+        // uint64_t input_ckb, output_ckb;
+        // int output_i = lua_getoffset(L, LUA_OUTPUT_OFFSET);
+        // CHECK_RET(ckbx_get_parallel_cell_capacity(
+        //     CKB_SOURCE_INPUT, false, i, CKB_SOURCE_OUTPUT, false, output_i, &input_ckb, &output_ckb));
+        // if (input_ckb != output_ckb)
+        // {
+        //     return ERROR_UNMATCHED_REQUEST_CKB;
+        // }
     }
     // recover KOC from backup
     lua_getglobal(L, LUA_KOC_BACKUP);

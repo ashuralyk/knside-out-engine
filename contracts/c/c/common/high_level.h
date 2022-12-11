@@ -545,11 +545,14 @@ int ckbx_get_random_seeds(uint8_t *cache, size_t len, uint8_t seeds[HALF_HASH_SI
 {
     blake2b_state hasher;
     blake2b_init(&hasher, HALF_HASH_SIZE);
-    int n = ckb_calculate_inputs_len();
-    for (int i = 0; i < n; ++i)
+    for (int i = 0; true; ++i)
     {
         size_t _len = len;
-        int ret = ckb_load_input(cache, &_len, 0, i, CKB_SOURCE_INPUT);
+        int ret = ckb_load_input(cache, &_len, 0, i, CKB_SOURCE_GROUP_INPUT);
+        if (ret == CKB_INDEX_OUT_OF_BOUND)
+        {
+            break;
+        }
         if (ret != CKB_SUCCESS)
         {
             return ERROR_CALCULATE_RANDOM;
